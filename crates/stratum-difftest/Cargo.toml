@@ -1,0 +1,91 @@
+#
+# `stratum-difftest` — the Stata differential-test harness (plan W23, spec §32).
+#
+# THE ONLY CRATE THAT CAN TALK TO STATA — and therefore NOT a default member.
+# ------------------------------------------------------------------------
+# The root `Cargo.toml` enumerates `default-members` and this crate is absent
+# from it; `xtask layering` lists it in `NEVER_DEFAULT_MEMBER` and fails the
+# build if it ever appears there, and `scripts/check-topology.sh stata-free-ci`
+# fails if any workflow but `stata-diff.yml` so much as names it. A bare
+# `cargo build` at the repo root pays nothing for this crate; CI's
+# `--workspace` builds and tests it — which is deliberate, because the corpus
+# half below needs no Stata and IS the everyday regression net.
+#
+# Two halves, one comparator:
+#
+#   * corpus  — Stata's side is the committed capture under
+#               `tests/golden/stata18/*.log` (StataMP 18.5; the licence has
+#               expired and the logs can never be regenerated). Our side is
+#               REGENERATED on every run from `stratum-stats`, so a regression
+#               can never be blessed into the repository. Runs everywhere,
+#               needs no Stata, and is what `cargo xtask difftest --corpus`
+#               and this crate's own tests execute.
+#   * live    — a licensed Stata (a future machine, or a colleague's) runs
+#               `tests/difftest/cases/**` through `scripts/run-stata.sh` and
+#               `tests/difftest/ado/stratum_capture.ado`, and the fresh
+#               capture is compared record-by-record. When no usable Stata
+#               exists the harness exits 77 (SKIP) and CI treats that as
+#               neutral, never as green-by-silence.
+#
+# The dependency list, and why each entry is load-bearing:
+#
+#   stratum-proto  `CaptureRecord` (CONTRACTS §9) — the one schema BOTH sides
+#                  emit. Numerics travel as `%21.17g` strings and are parsed
+#                  to f64 only at compare time.
+#   stratum-core   `fmt` (the ONE `%g` — our `%21.17g` strings come from the
+#                  same formatter the classic text uses, C12) and `missing`
+#                  (extended missing values compare BY CODE, never by
+#                  tolerance: `.a` and `.b` are 1 ulp apart).
+#   stratum-data   `Column`/`Sample`/`ValueLabel` — the fixture columns the
+#                  regenerated side is computed over, bit-identical to the
+#                  doubles Stata saw.
+#   stratum-stats  the estimators whose output is under test. Once W09's
+#                  engine edge lands in `stratum-cli`, `stratum run --capture`
+#                  replaces this direct edge; until then the stats crate IS
+#                  our runtime for the covered surface, and the swap is one
+#                  module (`corpus::regen`).
+#
+# NOT taken: anything that can open a window, a socket or a browser. The live
+# half spawns exactly one kind of child — `scripts/run-stata.sh` — and only
+# from the `live` code path, never from a test.
+
+[package]
+name = "stratum-difftest"
+description = "Stata differential-test harness: committed-corpus comparison everywhere, live differential only where a licensed Stata exists (spec §32)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "stratum-difftest"
+path = "src/main.rs"
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-core = { path = "../stratum-core" }
+stratum-data = { path = "../stratum-data" }
+stratum-stats = { path = "../stratum-stats" }
+anyhow = { workspace = true }
+camino = { workspace = true }
+clap = { workspace = true }
+# `tests/difftest/normalize.rules` is a data file of volatile-line patterns
+# (paths, timestamps, the `[redacted]` licence lines); the normalizer compiles
+# them once per run.
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

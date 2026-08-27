@@ -1,0 +1,117 @@
+// Stratum's function table — design 02 §8.5.
+//
+// FIELDS
+//   name    exact spelling. Stata function names are CASE-SENSITIVE: `F` and
+//           `invF` are the F distribution, `f` and `invf` are not functions.
+//   min/max argument count. 255 means variadic.
+//   ret     Real | Str | Either  (`cond()` is Either — it returns whichever of
+//           its two branches was taken).
+//   random  true when two calls with identical arguments may differ. Only the
+//           generators. `stratum-intel` reads this to decide whether a region's
+//           result can be reused (spec §12), and marking a pure function random
+//           only costs a recomputation while marking a random one pure serves a
+//           stale answer.
+//   tier    V1 executes now; V1_5/V2 parse to a signature and fail at eval with
+//           r(133), which is what lets an ado-file using one still highlight.
+//
+// A name that is NOT here parses fine and fails at evaluation with
+// `r(133) unknown function` — 02 §8.5. The parser never rejects a call for being
+// unknown, because users have ado-files and the error must come from the
+// runtime.
+
+(
+  functions: [
+    // ── arithmetic ───────────────────────────────────────────────────────────
+    ( name: "abs",       min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "ceil",      min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "floor",     min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "int",       min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "round",     min: 1, max: 2,   ret: "Real", tier: "V1" ),
+    ( name: "sign",      min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "mod",       min: 2, max: 2,   ret: "Real", tier: "V1" ),
+    ( name: "min",       min: 1, max: 255, ret: "Real", tier: "V1" ),
+    ( name: "max",       min: 1, max: 255, ret: "Real", tier: "V1" ),
+    ( name: "sum",       min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "exp",       min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "ln",        min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "log",       min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "log10",     min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "sqrt",      min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "float",     min: 1, max: 1,   ret: "Real", tier: "V1" ),
+    ( name: "double",    min: 1, max: 1,   ret: "Real", tier: "V1" ),
+
+    // ── logic and missing ────────────────────────────────────────────────────
+    ( name: "missing",   min: 1, max: 255, ret: "Real", tier: "V1" ),
+    ( name: "inrange",   min: 3, max: 3,   ret: "Real", tier: "V1" ),
+    ( name: "inlist",    min: 2, max: 255, ret: "Real", tier: "V1" ),
+    ( name: "cond",      min: 3, max: 4,   ret: "Either", tier: "V1" ),
+
+    // ── random ───────────────────────────────────────────────────────────────
+    ( name: "runiform",  min: 0, max: 2, ret: "Real", random: true, tier: "V1" ),
+    ( name: "rnormal",   min: 0, max: 2, ret: "Real", random: true, tier: "V1" ),
+    ( name: "rbinomial", min: 2, max: 2, ret: "Real", random: true, tier: "V1" ),
+    ( name: "rpoisson",  min: 1, max: 1, ret: "Real", random: true, tier: "V1" ),
+    ( name: "rchi2",     min: 1, max: 1, ret: "Real", random: true, tier: "V1_5" ),
+    ( name: "rbeta",     min: 2, max: 2, ret: "Real", random: true, tier: "V1_5" ),
+    ( name: "rgamma",    min: 2, max: 2, ret: "Real", random: true, tier: "V1_5" ),
+
+    // ── distributions ────────────────────────────────────────────────────────
+    ( name: "normal",    min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "invnormal", min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "normalden", min: 1, max: 3, ret: "Real", tier: "V1" ),
+    ( name: "t",         min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "invt",      min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "ttail",     min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "invttail",  min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "F",         min: 3, max: 3, ret: "Real", tier: "V1" ),
+    ( name: "invF",      min: 3, max: 3, ret: "Real", tier: "V1" ),
+    ( name: "Ftail",     min: 3, max: 3, ret: "Real", tier: "V1" ),
+    ( name: "invFtail",  min: 3, max: 3, ret: "Real", tier: "V1" ),
+    ( name: "chi2",      min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "invchi2",   min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "chi2tail",  min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "binomial",  min: 3, max: 3, ret: "Real", tier: "V1" ),
+
+    // ── strings ──────────────────────────────────────────────────────────────
+    ( name: "string",     min: 1, max: 2, ret: "Str",  tier: "V1" ),
+    ( name: "strofreal",  min: 1, max: 2, ret: "Str",  tier: "V1" ),
+    ( name: "real",       min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "substr",     min: 3, max: 3, ret: "Str",  tier: "V1" ),
+    ( name: "strlen",     min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "length",     min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "ustrlen",    min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "strupper",   min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "strlower",   min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "upper",      min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "lower",      min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "strtrim",    min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "trim",       min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "itrim",      min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "strpos",     min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "subinstr",   min: 4, max: 4, ret: "Str",  tier: "V1" ),
+    ( name: "word",       min: 2, max: 2, ret: "Str",  tier: "V1" ),
+    ( name: "wordcount",  min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "regexm",     min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "regexs",     min: 1, max: 1, ret: "Str",  tier: "V1" ),
+    ( name: "regexr",     min: 3, max: 3, ret: "Str",  tier: "V1" ),
+
+    // ── dates ────────────────────────────────────────────────────────────────
+    ( name: "date",  min: 2, max: 3, ret: "Real", tier: "V1" ),
+    ( name: "mdy",   min: 3, max: 3, ret: "Real", tier: "V1" ),
+    ( name: "year",  min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "month", min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "day",   min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "dow",   min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "yw",    min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "ym",    min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "yq",    min: 2, max: 2, ret: "Real", tier: "V1" ),
+    ( name: "td",    min: 1, max: 1, ret: "Real", tier: "V1" ),
+    ( name: "tc",    min: 1, max: 1, ret: "Real", tier: "V1" ),
+
+    // ── matrices (v1.5, `stratum-stats`' territory) ──────────────────────────
+    ( name: "trace",  min: 1, max: 1, ret: "Real", tier: "V1_5" ),
+    ( name: "det",    min: 1, max: 1, ret: "Real", tier: "V1_5" ),
+    ( name: "rowsof", min: 1, max: 1, ret: "Real", tier: "V1_5" ),
+    ( name: "colsof", min: 1, max: 1, ret: "Real", tier: "V1_5" ),
+  ],
+)

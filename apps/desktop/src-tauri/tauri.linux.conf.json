@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "rpm", "appimage"],
+    "category": "DeveloperTool",
+    "shortDescription": "Interactive statistical IDE",
+    "longDescription": "Stratum is an interactive statistical IDE where code, data, results, reproducibility and AI understand each other.",
+    "copyright": "© 2026 Stratum contributors",
+    "icon": [
+      "../../../packaging/icons/32x32.png",
+      "../../../packaging/icons/128x128.png",
+      "../../../packaging/icons/128x128@2x.png",
+      "../../../packaging/icons/icon.png"
+    ],
+    "externalBin": ["binaries/stratum"],
+    "resources": { "binaries/ado/base/a/auto.dta": "ado/base/a/auto.dta" },
+    "createUpdaterArtifacts": false,
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"],
+        "files": {
+          "/usr/share/applications/dev.stratum.Stratum.desktop": "../../../packaging/linux/dev.stratum.Stratum.desktop",
+          "/usr/share/mime/packages/dev.stratum.stratum.xml": "../../../packaging/linux/dev.stratum.stratum.xml",
+          "/usr/share/metainfo/dev.stratum.Stratum.metainfo.xml": "../../../packaging/linux/dev.stratum.Stratum.metainfo.xml"
+        },
+        "postInstallScript": "../../../packaging/linux/deb-postinst.sh",
+        "postRemoveScript": "../../../packaging/linux/deb-postrm.sh"
+      },
+      "rpm": {
+        "depends": ["webkit2gtk4.1", "gtk3"],
+        "epoch": 0,
+        "files": {
+          "/usr/share/applications/dev.stratum.Stratum.desktop": "../../../packaging/linux/dev.stratum.Stratum.desktop",
+          "/usr/share/mime/packages/dev.stratum.stratum.xml": "../../../packaging/linux/dev.stratum.stratum.xml",
+          "/usr/share/metainfo/dev.stratum.Stratum.metainfo.xml": "../../../packaging/linux/dev.stratum.Stratum.metainfo.xml"
+        },
+        "postInstallScript": "../../../packaging/linux/deb-postinst.sh",
+        "postRemoveScript": "../../../packaging/linux/deb-postrm.sh"
+      },
+      "appimage": { "bundleMediaFramework": false }
+    }
+  }
+}

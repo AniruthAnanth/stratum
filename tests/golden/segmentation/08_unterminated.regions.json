@@ -1,0 +1,13 @@
+{
+  "abi": 1,
+  "regions": [
+    {"i": 0, "span": [0, 15], "outer": [0, 16], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [0, 0], "flags": ["executable"], "hash": "1135bcb72d3f63673ca9c386b333c39f", "ordinal": 0},
+    {"i": 1, "span": [16, 17], "outer": [16, 17], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [1, 1], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 0},
+    {"i": 2, "span": [17, 67], "outer": [17, 68], "kind": "unterminated:close_brace", "entry": "cr", "exit": "cr", "lines": [2, 3], "flags": [], "hash": "5d27508d5afa01b697cb6c2098e8e827", "ordinal": 0}
+  ],
+  "sections": [],
+  "narrative": [],
+  "diagnostics": [
+    {"severity": "error", "code": "PARSE0003", "span": [17, 67], "message": "block is never closed: expected }"}
+  ]
+}

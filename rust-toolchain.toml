@@ -1,0 +1,13 @@
+# Pinned exactly (08 §11.3). Bumping the toolchain is a reviewable PR: this is a
+# numerics project and a codegen change can move a result, which would move a
+# golden, which is a thing a human must look at.
+#
+# `targets` is deliberately NOT listed here. rustup materialises every target in
+# this file on the next cargo invocation, so listing the six release triples plus
+# wasm32 would make a first `cargo check` pull ~1 GB of std on a machine that
+# only ever builds for its own host. CI and `xtask wasm` add what they need with
+# an explicit `rustup target add` instead, which is visible in the job log.
+[toolchain]
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

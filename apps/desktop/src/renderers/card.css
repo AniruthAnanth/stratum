@@ -1,0 +1,248 @@
+/* The card shell — 06 §4.6, §14.4, §14.6, §14.8.
+ *
+ * No hex literal, no shadow, no radius above 3px, no coloured header bar, and
+ * no `@keyframes` except the one indeterminate shuttle 06 §14.6 specifies.
+ * `contract.test.ts` asserts all five against this directory's stylesheets,
+ * because "cards appear with zero animation" is the kind of promise a later
+ * hover polish quietly breaks.
+ */
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--w-state-rail) 1fr;
+  grid-template-areas:
+    "rail header"
+    "rail stale"
+    "rail body"
+    "rail actions";
+  column-gap: var(--sp-8);
+  margin: var(--card-gap-above) 0 var(--card-gap-below) 0;
+  padding: 0;
+  background: var(--canvas);
+  border-radius: var(--radius-none);
+  min-height: var(--card-est-px, auto);
+  /* 06 §15.1: an off-screen card costs nothing to keep mounted. */
+  content-visibility: auto;
+  contain: layout style paint;
+}
+
+.card:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The rail. 06 §4.6: "the strongest system element in the product" — the gutter
+   glyph, the running hairline and this are one colour for one block, so the eye
+   connects code to result with no box, shadow or border. */
+.card__rail {
+  grid-area: rail;
+  position: relative;
+  width: var(--w-state-rail);
+  background: var(--state-never-run);
+  border-radius: var(--radius-none);
+}
+
+.card[data-state="current"] .card__rail {
+  background: var(--state-ok);
+}
+.card[data-state="failed"] .card__rail {
+  background: var(--state-failed);
+}
+.card[data-state="stale"] .card__rail {
+  background: var(--state-stale);
+}
+.card[data-state="running"] .card__rail {
+  background: var(--accent-subtle);
+}
+
+/* Stale: a DASHED amber rail. Colour is never the only channel (06 §17), and a
+   dash reads as "interrupted lineage" in a greyscale screenshot too. */
+.card[data-stale] .card__rail {
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--state-stale) 0,
+    var(--state-stale) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
+
+/* Running: a 1px hairline advancing along the rail. Never a spinner. */
+.card__hairline {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 0;
+  background: var(--accent);
+  transition: height var(--motion-state) var(--motion-state-easing);
+}
+
+.card__hairline[data-indeterminate] {
+  height: 100%;
+  transform-origin: top;
+  animation: stratum-hairline-shuttle var(--motion-shuttle) linear infinite;
+}
+
+@keyframes stratum-hairline-shuttle {
+  0% {
+    transform: scaleY(0.15) translateY(0);
+  }
+  50% {
+    transform: scaleY(0.15) translateY(566%);
+  }
+  100% {
+    transform: scaleY(0.15) translateY(0);
+  }
+}
+
+/* Header */
+.card__header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-height: var(--h-grid-row);
+  padding: var(--card-pad-y) var(--card-pad-x) 0 0;
+}
+
+.card__glyph {
+  display: inline-flex;
+  flex: none;
+}
+
+.card__cmd {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  color: var(--text-heading);
+  white-space: pre;
+  overflow: hidden;
+}
+
+.card__readout {
+  flex: none;
+  display: inline-flex;
+  gap: var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-meta);
+  font-variant-numeric: var(--font-numeric);
+}
+
+.card__dot {
+  color: var(--text-disabled);
+}
+
+.card__menu {
+  flex: none;
+  padding: 0 var(--sp-4);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--text-meta);
+  cursor: default;
+  line-height: 1;
+}
+
+.card__menu:hover {
+  color: var(--text-body);
+  background: var(--input);
+}
+
+/* The stale reason strip. Header stays at full opacity; the BODY dims. */
+.card__stale {
+  grid-area: stale;
+  margin: var(--sp-2) 0 0 0;
+  padding: 0 var(--card-pad-x) 0 0;
+  display: flex;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--state-stale);
+}
+
+.card__stale-upstream {
+  font-family: var(--font-mono);
+  color: var(--text-meta);
+}
+
+/* Body */
+.card__body {
+  grid-area: body;
+  padding: var(--sp-6) var(--card-pad-x) var(--sp-6) 0;
+  overflow-x: auto;
+}
+
+.card[data-stale] .card__body {
+  opacity: 0.62;
+}
+
+.card[data-collapsed] .card__body {
+  display: none;
+}
+
+/* Action row: 11px text buttons, no button chrome, a 1px underline on hover. */
+.card__actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-12);
+  padding: 0 var(--card-pad-x) var(--card-pad-y) 0;
+}
+
+.card__action {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: var(--radius-none);
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-label);
+  cursor: default;
+}
+
+.card__action:hover {
+  color: var(--text-body);
+  border-bottom-color: var(--border-strong);
+}
+
+.card__action:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A body section separator when a card carries several payloads (06 §4.7). */
+.card__section + .card__section {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--border);
+}
+
+/* A deterministic note the renderer emits: collinearity, truncation, a layer the
+   payload cannot express. Meta ink, never a coloured banner. */
+.card__note {
+  margin: var(--sp-6) 0 0 0;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-meta);
+}
+
+.card__note[data-severity="warning"] {
+  color: var(--state-stale);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card__hairline {
+    transition: none;
+  }
+  .card__hairline[data-indeterminate] {
+    animation: none;
+    height: 50%;
+  }
+}

@@ -1,0 +1,97 @@
+# `stratum` — the headless command surface (spec §30, design 08 §4).
+#
+# BIN-ONLY, DELIBERATELY --------------------------------------------------
+# `crates/stratum-cli/src/lib.rs` and `crates/stratum-cli/tests/**` are claimed
+# by NO unit in docs/ownership.toml, so adding a lib target or an integration
+# test directory makes `cargo xtask ownership` fail with "tracked file owned by
+# NOBODY". Everything is therefore reached through `main.rs` / `cmd/**` /
+# `output/**`, and every test in this crate is a `#[cfg(test)] mod tests` inside
+# a file W09 owns. That is why there is no `assert_cmd`/`predicates` here: a
+# unit test inside the binary calls the command function directly, which is the
+# same code the binary runs and is faster than spawning a process.
+#
+# `missing_docs` is safe here for the same reason W07 recorded: nothing is
+# publicly reachable, so the lint only asks for a crate-level `//!`.
+#
+# `unsafe_code` must NOT be forbidden or denied: `serve/mod.rs` (W07) has four
+# documented `unsafe` sites — `libc::getppid` twice for the macOS parent-death
+# watchdog, and `libc::kill` twice — and `main.rs` installs a SIGINT handler
+# (exit code 7) the same way. W07 verified that the `unsafe_code = "forbid"`
+# idiom used by most crates here fails to compile this crate.
+#
+# WHAT IS NOT A DEPENDENCY, AND WHY ----------------------------------------
+#   * `tauri`               ARCHITECTURE §8.8 / spec §30 — the headless binary
+#                           links no GUI. `cargo xtask layering` enforces it and
+#                           `cmd/version.rs` asserts it again from the built
+#                           dependency list.
+#   * `stratum-difftest`    spec §32 — the shipped binary must have no code path
+#                           that can invoke Stata.
+#   * `stratum-platform-host`  its non-macOS arms are a `compile_error!` until
+#                           W24 lands (see that crate's manifest). The CLI must
+#                           build on all three OSes today, so it takes
+#                           `stratum-platform` — traits and `Paths`, zero OS
+#                           deps — and nothing below it.
+#   * `stratum-exec` / `stratum-session` / `stratum-runtime`
+#                           THE OPEN BLOCKER, and it is an ORDERING one rather
+#                           than an absence: all three crates now exist in the
+#                           tree, but they are being written in the same wave as
+#                           this one and the engine is a three-crate stack
+#                           (`exec` declares `SessionHost` as a port, `session`
+#                           implements it over `runtime`). Taking three path
+#                           dependencies on manifests that are mid-edit would
+#                           make this package's build red for reasons no change
+#                           here can fix. `src/cmd/mod.rs`'s header names the
+#                           exact four-line edit that closes it, and
+#                           `cmd::ENGINE_LINKED` is the one flag that flips.
+#   * `tokio`               every entry point here is synchronous. `serve` is a
+#                           blocking read loop over stdin by design (08 §4.1).
+
+[package]
+name = "stratum-cli"
+description = "The headless `stratum` command surface: run, exec, check, describe, serve."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "stratum"
+path = "src/main.rs"
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-parse = { path = "../stratum-parse" }
+stratum-platform = { path = "../stratum-platform" }
+stratum-workspace = { path = "../stratum-workspace" }
+
+anyhow = { workspace = true }
+camino = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+rmp-serde = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+# L3 only (A2): the ONE place a `UnixMs` is rendered for a human.
+time = { workspace = true }
+
+# The macOS `getppid()` watchdog — the CHILD half of orphan prevention — and the
+# SIGINT handler behind exit code 7. `libc` is not in [workspace.dependencies];
+# crates/stratum-platform-macos declares it exactly this way.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+# NOTE the deliberate absence of `unsafe_code = "forbid"`; see the header.
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

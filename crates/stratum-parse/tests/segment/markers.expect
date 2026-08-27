@@ -1,0 +1,6 @@
+1..1	Trivia                	cr       	marker
+2..2	Simple                	cr       	canonical=use
+3..4	Trivia                	cr       	marker
+5..6	Simple                	cr       	canonical=drop
+7..9	Trivia                	cr       
+10..10	Simple                	cr       	canonical=summarize

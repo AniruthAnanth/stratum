@@ -1,0 +1,111 @@
+#
+# `stratum-e2e` — the two-tier end-to-end harness (plan W25, ADR-011, Q16).
+#
+# NOT A DEFAULT MEMBER — AND NOW ACTUALLY CHECKED.
+# ------------------------------------------------------------------------
+# ARCHITECTURE §5 lists this crate with `stratum-difftest` and `xtask` as
+# "excluded from `default-members` — the machine-checked form of §32". Repair
+# round 1 could not make that true: W25 owns no root manifest, the root's
+# `default-members = ["crates/*"]` glob swept this crate in, and cargo member
+# patterns have no negation. It was escalated from here instead, with the
+# exposure bounded on purpose in the meantime (default features EMPTY;
+# `fantoccini` and `tokio` optional behind `tier2`, so a bare build resolved
+# `stratum-proto` + serde and nothing that could reach Stata).
+#
+# The architect has since replaced the glob with an enumeration and this crate
+# is absent from it, so §32 is a check here rather than a promise. Two things
+# follow and both are deliberate:
+#
+#   * `cargo build --workspace` / `cargo test --workspace` — what CI runs —
+#     still build and test everything here, including `src/bin/stratum-e2e-gate`
+#     and the two gate modules under it. That is the point: ADR-011's fence is
+#     compiled and unit-tested on every push, which is what round 1's copy in
+#     `xtask/src/e2e.rs` never was.
+#   * a bare `cargo build` at the root pays nothing for this crate at all, so
+#     the gate binary is not a tax on the ordinary edit-compile loop.
+
+[package]
+name = "stratum-e2e"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+default = []
+
+# Tier 2 — real WebDriver input through `tauri-driver`. Windows and Linux only
+# at RUN time (Q16/ADR-011: WKWebView exposes no WebDriver endpoint), but it
+# COMPILES everywhere on purpose: macOS is the primary development platform and
+# a tier nobody can typecheck locally is a tier that rots. `tier2::connect`
+# refuses at run time on macOS with the reason, rather than at compile time.
+tier2 = ["dep:fantoccini", "dep:hyper-util", "dep:tokio"]
+
+# Scenario tests that need a LIVE host process (the frontend e2e bridge under
+# node, or — once W17 lands — the packaged app built with `--features e2e`).
+#
+# Off by default because ci.yml's `test` job runs `cargo nextest run
+# --workspace` on three OSes with no `pnpm install` in it: a test that needs
+# `apps/desktop/node_modules` would fail there for a reason that is not a defect.
+# `cargo xtask e2e --tier 1` and `.github/workflows/e2e.yml` turn it on, which
+# is exactly where the acceptance bullet points.
+live = []
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rmp-serde = { workspace = true }
+camino = { workspace = true }
+thiserror = { workspace = true }
+
+# --- tier 2 only ------------------------------------------------------------
+# NO TLS FEATURE AT ALL, and the reason is a CI gate rather than taste.
+#
+# `tauri-driver` listens on loopback and speaks plain HTTP/1.1, so a TLS stack
+# is dead weight here in every case. It is worse than dead weight in both of
+# fantoccini's:
+#
+#   * `native-tls` (its default) pulls `openssl-sys`, which deny.toml bans
+#     outright — 08 §10.5, "a C toolchain on the Windows build path";
+#   * `rustls-tls` pulls hyper-rustls → rustls → **aws-lc-rs → aws-lc-sys**,
+#     whose license is `ISC AND (Apache-2.0 OR ISC) AND OpenSSL`. `OpenSSL` is
+#     not in deny.toml's allowlist, so `cargo deny check licenses` fails — and
+#     aws-lc-sys builds C the same way openssl-sys does, which is the thing the
+#     ban exists to prevent. Measured, not assumed: with `rustls-tls` this
+#     crate's `cargo tree --all-features -e normal` was 111 packages and
+#     contained aws-lc-sys v0.44 and rustls v0.23; with no TLS feature it is 96
+#     and contains neither. (Default features, which is what a bare
+#     `cargo build --workspace` compiles, are 23 packages.)
+#
+# So the connector is `hyper_util`'s plain `HttpConnector`, handed to
+# `ClientBuilder::new`. fantoccini is still the client, exactly as the plan
+# specifies; only its transport is chosen explicitly.
+fantoccini = { version = "0.22", default-features = false, optional = true }
+hyper-util = { version = "0.1", features = ["client-legacy", "tokio", "http1"], optional = true }
+tokio = { workspace = true, optional = true }
+
+[dev-dependencies]
+# `tests/e2e/mod.rs` includes W26's `tests/e2e/scenario_d.rs`, which is written
+# against these three and nothing from this harness — see the header of that
+# file. This is the `#[path]` line it was designed for.
+stratum-workspace = { path = "../stratum-workspace" }
+tempfile = { workspace = true }
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+# `src/host.rs` compiles W25's `apps/desktop/src-tauri/src/e2e_cmds.rs`, whose
+# Tauri half is `#[cfg(feature = "e2e")]`. That feature belongs to
+# `stratum-desktop`, NOT to this crate, and must not be declared here: declaring
+# it would put it in `--all-features`, which is what CI's clippy runs, and
+# `tauri_surface` would then fail to resolve `tauri`. Naming the cfg to rustc
+# instead keeps `-D warnings` clean without creating a feature that lies about
+# what this crate can build.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("e2e"))'] }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

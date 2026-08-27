@@ -1,0 +1,552 @@
+# Stratum — every PR and every push to `main`. Design doc 08 §8.2.
+#
+# ==========================================================================
+# THIS WORKFLOW NEVER NEEDS STATA, ON ANY RUNNER, IN ANY JOB.
+#
+# Spec §32 and ADR-013 make the Stata differential harness opt-in and
+# self-hosted: it lives in `.github/workflows/stata-diff.yml` (W23) and nothing
+# here calls it. `scripts/check-topology.sh` enforces that mechanically — its
+# `stata-free-ci` check fails if any workflow but `stata-diff.yml` names a Stata
+# path, a Stata binary, or the difftest crate. Stata is the oracle for the
+# goldens; it is not a build dependency, and if it ever becomes one the project
+# has stopped being installable by anyone without a licence.
+# ==========================================================================
+#
+# Required checks for merging into `main` (08 §8.2):
+#   lint · layering · deny · headless · test (×3) · frontend · build-app (×3) ·
+#   commitlint
+#
+# The `preflight` job publishes which parts of the tree exist. During the
+# build-out most crates and the whole frontend are absent, and a job that fails
+# because its subject has not been written yet teaches people to ignore red.
+# Each gate disappears on its own the moment the unit that owns it lands.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A force-push supersedes the run it interrupted; `main` is never cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0        # never useful in CI, and it inflates the cache
+  RUST_BACKTRACE: 1
+
+jobs:
+  # -------------------------------------------------------------------------
+  preflight:
+    name: preflight
+    runs-on: ubuntu-22.04
+    outputs:
+      crates: ${{ steps.probe.outputs.crates }}
+      cli: ${{ steps.probe.outputs.cli }}
+      frontend: ${{ steps.probe.outputs.frontend }}
+      desktop: ${{ steps.probe.outputs.desktop }}
+      conformance: ${{ steps.probe.outputs.conformance }}
+      commitlint: ${{ steps.probe.outputs.commitlint }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          emit() { echo "$1=$2" >>"$GITHUB_OUTPUT"; echo "$1=$2"; }
+          shopt -s nullglob
+          crates=(crates/*/Cargo.toml)
+          emit crates "$([[ ${#crates[@]} -gt 0 ]] && echo true || echo false)"
+          emit cli "$([[ -f crates/stratum-cli/Cargo.toml ]] && echo true || echo false)"
+          emit frontend "$([[ -f apps/desktop/package.json ]] && echo true || echo false)"
+          emit desktop "$([[ -f apps/desktop/src-tauri/Cargo.toml ]] && echo true || echo false)"
+          emit conformance "$([[ -d tests/conformance ]] && echo true || echo false)"
+          emit commitlint "$([[ -f .github/commitlint.config.mjs ]] && echo true || echo false)"
+
+  # -------------------------------------------------------------------------
+  lint:
+    name: lint
+    runs-on: ubuntu-22.04
+    needs: preflight
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: lint
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: taplo-cli
+
+      # The repo root is NOT a pnpm workspace: the one package.json and the one
+      # pnpm-lock.yaml live in apps/desktop, so every pnpm command runs there
+      # (`working-directory`) and setup-node's cache is keyed on that lockfile.
+      # `pnpm install` at the root fails with ERR_PNPM_NO_PKG_MANIFEST.
+      - uses: pnpm/action-setup@v4
+        if: needs.preflight.outputs.frontend == 'true'
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        if: needs.preflight.outputs.frontend == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: pnpm install
+        if: needs.preflight.outputs.frontend == 'true'
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+
+      # stratum-desktop is a workspace member, so every job that compiles the
+      # workspace inherits three things a fresh runner does not have:
+      #  - on Linux, tauri links GTK/WebKit through webkit2gtk-sys' pkg-config
+      #    probe, so the -dev packages must be installed before cargo gets
+      #    there ("Package gdk-3.0 was not found" on the first runner log);
+      #  - on every OS, tauri-build copies the externalBin sidecar into
+      #    target/ and refuses to compile without it ("resource path
+      #    binaries/stratum-<triple> doesn't exist" — reproduced locally by
+      #    moving the file aside). The sidecar is a build product and is
+      #    gitignored, so it is staged from a fresh stratum-cli build the way
+      #    package.yml stages it. `--cli` names the DEBUG binary because that
+      #    is what `cargo build -p stratum-cli` produced; `xtask dist stage`
+      #    defaults to target/release/stratum otherwise, which no job here
+      #    builds;
+      #  - `--all-features` turns on `custom-protocol`, under which
+      #    `tauri::generate_context!` embeds apps/desktop/dist at COMPILE time
+      #    and panics when it is absent ("The `frontendDist` configuration is
+      #    set to "../dist" but this path doesn't exist" — reproduced the same
+      #    way), so `pnpm build` has to run before clippy does.
+      - name: linux webkit deps
+        if: runner.os == 'Linux' && needs.preflight.outputs.desktop == 'true'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          version: 1.0
+      - name: stage the externalBin sidecar
+        if: needs.preflight.outputs.desktop == 'true'
+        run: |
+          cargo build -p stratum-cli
+          cargo xtask dist stage --cli target/debug/stratum
+      - name: the frontend bundle `--all-features` embeds
+        if: needs.preflight.outputs.desktop == 'true'
+        working-directory: apps/desktop
+        run: pnpm build
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      # `--all-features` matters: a lint that only fires under a feature nobody
+      # builds by default is a lint that fires for the first time in a release.
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: taplo fmt
+        run: taplo fmt --check --diff
+
+      - name: biome
+        if: needs.preflight.outputs.frontend == 'true'
+        working-directory: apps/desktop
+        run: pnpm biome ci .
+      - name: tsc
+        if: needs.preflight.outputs.frontend == 'true'
+        working-directory: apps/desktop
+        run: pnpm tsc --noEmit
+
+  # -------------------------------------------------------------------------
+  # Every machine-checked invariant in ARCHITECTURE §8 that is not a build.
+  # Named `layering` because that is the required check 08 §8.2 lists.
+  layering:
+    name: layering
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: xtask
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # §8.4 asserts the wasm-clean set BUILDS for wasm32, so the target has to
+      # be here. `rust-toolchain.toml` deliberately does not list it: rustup
+      # would then materialise ~1 GB of std on a contributor's first `cargo
+      # check`. An explicit add is visible in the job log instead.
+      - name: add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      # No webkit headers and no sidecar here, unlike lint/test/build-app:
+      # nothing below compiles stratum-desktop. `cargo xtask ...` builds xtask
+      # alone, `--wasm-build` is a `-p`-scoped check of the wasm-clean crates,
+      # and the rest is `cargo metadata` plus source scans.
+
+      # §8.1, §8.2, §8.4, §8.5, §8.6 — the resolved crate graph.
+      - name: cargo xtask layering
+        run: cargo xtask layering --wasm-build
+
+      # §8.3, §8.6 (workflow half), §8.7, §8.11, §8.14 — source scans.
+      - name: scripts/check-topology.sh
+        run: bash scripts/check-topology.sh
+
+      # §8.13 — R0, one owner per file. A file claimed by two units, or a
+      # tracked file claimed by none, fails this step.
+      #
+      # No leniency flag: docs/ownership.toml is transcribed from
+      # IMPLEMENTATION_PLAN §8 up front, so until the last unit lands most of
+      # its 200 exact paths name files nobody has written, and `[meta] complete`
+      # in the manifest is what says so. Flipping it to `true` at the end of the
+      # build-out turns those into errors here with no change to this file — and
+      # keeps the command a contributor runs identical to the one CI runs, which
+      # a flag here would not.
+      - name: cargo xtask ownership
+        run: cargo xtask ownership --verify-counts
+
+      # §8.14 — the two committed token artifacts match design/tokens.json.
+      - name: cargo xtask tokens --check
+        run: cargo xtask tokens --check
+
+      # CONTRACTS §8.1 — the SDP1 reference fixtures. The two `Edit` pages are
+      # byte-compared against the encoder; `auto_40x12.bin` is `Display`, so its
+      # cells came from Stata and CI validates it against the layout rules
+      # instead of regenerating it. No Stata is involved either way.
+      - name: cargo xtask sdp1 check
+        run: cargo xtask sdp1 check
+
+      # §8.12 — the packaged app's CSP lists every scheme the frontend fetches.
+      # A missing scheme breaks only the packaged build, never dev.
+      - name: cargo xtask csp-check
+        run: cargo xtask csp-check
+
+      - name: xtask's own tests
+        run: cargo test -p xtask
+
+  # -------------------------------------------------------------------------
+  deny:
+    name: deny
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo deny check licenses bans sources advisories
+
+  # -------------------------------------------------------------------------
+  # Spec §30 as a test: the statistical core builds and links with no GUI
+  # anywhere in the graph.
+  headless:
+    name: headless
+    runs-on: ubuntu-22.04
+    needs: preflight
+    if: needs.preflight.outputs.cli == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: headless
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo build -p stratum-cli --no-default-features
+      - name: no tauri in the CLI's dependency tree
+        run: |
+          set -euo pipefail
+          if cargo tree -p stratum-cli --no-default-features -e normal | grep -qE '^\s*[|`+-]*\s*tauri v'; then
+            echo "::error::stratum-cli reaches tauri; spec §30 says it must not"
+            exit 1
+          fi
+
+  # -------------------------------------------------------------------------
+  test:
+    name: test
+    needs: preflight
+    if: needs.preflight.outputs.crates == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15          # Apple Silicon
+          - os: windows-2022
+          - os: ubuntu-22.04      # glibc 2.35: the .deb/AppImage floor
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: test-${{ matrix.os }}
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      # `--workspace` compiles stratum-desktop, so this job needs the two inputs
+      # the lint job explains (webkit -dev packages on Linux, the staged
+      # externalBin sidecar everywhere) — but NOT `pnpm install`: no feature is
+      # on, so nothing embeds the frontend, and crates/stratum-e2e's `live`
+      # feature stays off by default precisely because this job has no node.
+      # Windows names the CLI `stratum.exe`; `xtask dist stage` picks the host
+      # triple itself.
+      - name: linux webkit deps
+        if: runner.os == 'Linux' && needs.preflight.outputs.desktop == 'true'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          version: 1.0
+      - name: stage the externalBin sidecar
+        if: needs.preflight.outputs.desktop == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p stratum-cli
+          cli=target/debug/stratum
+          [[ "$RUNNER_OS" == "Windows" ]] && cli+=.exe
+          cargo xtask dist stage --cli "$cli"
+
+      # Per-test process isolation (.config/nextest.toml): the runtime has
+      # process-global state and a panicking test under libtest can poison the
+      # whole binary.
+      - run: cargo nextest run --workspace --profile ci
+      - run: cargo test --workspace --doc
+
+  # -------------------------------------------------------------------------
+  # ARCHITECTURE §8.9 (amended, A8) / spec §38-E. The compared artifact is
+  # `--deterministic` NDJSON, never raw `--json`: raw carries wall-clock
+  # timestamps, durations and a cwd, and can never be byte-identical.
+  conformance:
+    name: conformance-${{ matrix.os }}
+    needs: preflight
+    if: needs.preflight.outputs.conformance == 'true' && needs.preflight.outputs.cli == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: conformance-${{ matrix.os }}
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: run the conformance corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          for case in tests/conformance/*.do; do
+            name=$(basename "$case" .do)
+            cargo run -q -p stratum-cli -- run "$case" --json --deterministic > "out/$name.jsonl"
+          done
+      # ADR-013: the SHA-256 must be identical at RAYON_NUM_THREADS in {1,2,8}.
+      # Thread count is the only variable the map/reduce split can leak.
+      - name: thread-count determinism
+        shell: bash
+        run: |
+          set -euo pipefail
+          for n in 1 2 8; do
+            mkdir -p "rt$n"
+            for case in tests/conformance/*.do; do
+              name=$(basename "$case" .do)
+              RAYON_NUM_THREADS=$n cargo run -q -p stratum-cli -- \
+                run "$case" --json --deterministic > "rt$n/$name.jsonl"
+            done
+            diff -r out "rt$n"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conformance-${{ matrix.os }}
+          path: out/
+          retention-days: 3
+
+  conformance-compare:
+    name: conformance-compare
+    needs: conformance
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: platforms
+      - name: the three platforms produced the same bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=platforms/conformance-ubuntu-22.04
+          for other in platforms/conformance-macos-15 platforms/conformance-windows-2022; do
+            echo "== $other vs $base"
+            diff -r "$base" "$other"
+          done
+          echo "identical on all three platforms"
+
+  # -------------------------------------------------------------------------
+  frontend:
+    name: frontend
+    runs-on: ubuntu-22.04
+    needs: preflight
+    if: needs.preflight.outputs.frontend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      # apps/desktop is the pnpm project; the repo root has no package.json.
+      - name: pnpm install
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+
+      # Rebuild the wasm artifact from source BEFORE testing against it.
+      #
+      # apps/desktop/src/wasm/generated/** is a committed binary, so that a
+      # frontend contributor with no Rust toolchain can still run the app. That
+      # convenience has a failure mode, and it has already bitten once: the
+      # committed .wasm went stale against crates/stratum-wasm, the
+      # cross-backend differential caught a real Option-to-undefined bug that
+      # the source had ALREADY fixed, and the suite went red for a defect that
+      # did not exist in the tree. Testing a checked-in binary tests whatever
+      # was last committed, not what the repository says.
+      #
+      # Rebuilding here means the artifact under test always matches its source.
+      # A byte-comparison against the committed copy would be the obvious
+      # alternative and is deliberately NOT used: without wasm-opt installed the
+      # build is not byte-reproducible across machines, so that check would fail
+      # for a reason that has nothing to do with correctness.
+      - uses: dtolnay/rust-toolchain@stable
+      - name: add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+      # `cargo xtask wasm` drives wasm-bindgen (wasm-pack when present); a bare
+      # runner has neither, and the first real run stopped here.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen,wasm-pack
+      - name: rebuild wasm from source
+        run: cargo xtask wasm
+
+      - name: vitest
+        working-directory: apps/desktop
+        run: pnpm vitest run --coverage
+
+  # -------------------------------------------------------------------------
+  # The packaging smoke test. `--no-bundle` proves the desktop compiles and
+  # links on every platform without paying for installer generation on every
+  # PR; signing, notarization and the real installers are package.yml's (W22).
+  #
+  # The Tauri CLI is not a devDependency of apps/desktop and there is no `tauri`
+  # script, so `pnpm tauri` is "Command not found"; package.yml and e2e.yml
+  # reach it through `pnpm dlx @tauri-apps/cli@<pinned>` and so does this job.
+  # Tauri 2's flag for "skip bundling" is `--no-bundle`; `--bundles none` was
+  # the Tauri 1 spelling and the 2.x CLI rejects it as an invalid value.
+  build-app:
+    name: build-app
+    needs: preflight
+    if: needs.preflight.outputs.desktop == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: build-app-${{ matrix.os }}
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: linux webkit deps
+        if: matrix.os == 'ubuntu-22.04'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          version: 1.0
+
+      # tauri-build refuses to compile the host without the externalBin sidecar
+      # on disk (see the lint job). `--debug` below builds the dev profile, so
+      # the sidecar is the dev-profile CLI too.
+      - name: stage the externalBin sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p stratum-cli
+          cli=target/debug/stratum
+          [[ "$RUNNER_OS" == "Windows" ]] && cli+=.exe
+          cargo xtask dist stage --cli "$cli"
+
+      - name: pnpm install
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+      # `beforeBuildCommand` (tauri.conf.json) runs `pnpm build` for the
+      # frontendDist the packaged binary embeds; nothing else has to precede it.
+      - name: tauri build
+        working-directory: apps/desktop
+        run: pnpm dlx @tauri-apps/cli@2.11.0 build --debug --no-bundle
+
+      # The CSP is only applied in a packaged build, so this is the first point
+      # at which it is real. Cheap, and §8.12 exists because the packaged-only
+      # failure mode is invisible everywhere else.
+      - name: cargo xtask csp-check --require
+        run: cargo xtask csp-check --require
+
+  # -------------------------------------------------------------------------
+  # We squash-merge (08 §11.2), so the PR title becomes the commit message.
+  commitlint:
+    name: commitlint
+    runs-on: ubuntu-22.04
+    needs: preflight
+    if: github.event_name == 'pull_request' && needs.preflight.outputs.commitlint == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: lint the PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s' "$PR_TITLE" | npx --yes commitlint --config .github/commitlint.config.mjs
+
+  # -------------------------------------------------------------------------
+  # A warning, not a gate: a `Spec:` trailer is how a change to the engine stays
+  # traceable to the clause that asked for it. `Spec: n/a` is a valid answer.
+  spec-trace:
+    name: spec-trace
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          if ! git diff --name-only "$BASE" "$HEAD" | grep -q '^crates/'; then
+            echo "no crate changes; nothing to trace"
+            exit 0
+          fi
+          if git log --format=%B "$BASE..$HEAD" | grep -q '^Spec:' \
+            || printf '%s' "$PR_BODY" | grep -q '^Spec:'; then
+            echo "Spec: trailer present"
+          else
+            echo "::warning::this PR touches crates/ with no \`Spec:\` trailer; \`Spec: n/a\` is fine"
+          fi

@@ -1,0 +1,85 @@
+# ARCHITECTURE.md §5: "`.dta` 117/118/119 read+write, GSO packing, codepage,
+# `probe_dta`, `canonical_eq`."  Design authority: `docs/design/04-data-engine-
+# dta.md` §§9–11. Threat model: `docs/THREAT_MODEL.md`, which is this unit's
+# first deliverable and gates the reader.
+#
+# The dependency list, and why each entry is load-bearing:
+#
+#   stratum-proto  `StorageType` is declared THERE and nowhere else (A10); the
+#                  reader must not grow a twin of it.
+#   stratum-core   THE missing-value definition. The `.dta` sentinel encoding on
+#                  disk IS the in-memory encoding, so `missing::{BYTE_MISS,
+#                  INT_MISS, LONG_MISS, F32_MISS_BITS, F64_MISS_BITS}` are read
+#                  from there and never re-spelled here. Also `types::
+#                  storage_width`, which is the row-width arithmetic.
+#   stratum-data   `Column`/`NumCol`/`FixedStrCol` and, decisively,
+#                  `Column::from_row_major` — W02's chunked, parallel, one-copy
+#                  bulk ingest, which `04` §12.1 calls the whole cost of loading.
+#                  Also `ValueLabelSet` and `CharTable`, both fully constructible
+#                  from outside that crate.
+#   memmap2        `04` §1.1 / §9.4 step 1: read a multi-gigabyte `.dta` without
+#                  a heap copy of the source. The transpose then reads straight
+#                  from the mapping and the mapping is dropped before
+#                  `read_dta` returns. Falls back to `read` below 1 MiB and on
+#                  any mapping error.
+#   rustc-hash     the GSO `(v,o)` index on read and the strL content-dedup map
+#                  on write. Keys are short and non-adversarial in the sense
+#                  that matters — see THREAT_MODEL §6.3.
+#   thiserror      `DtaError`.
+#   serde          `ReadReport`/`ReadWarning` reach the UI as diagnostics.
+#
+# NOT taken: `bytemuck` (the strided ingest is W02's typed loop, which LLVM
+# vectorises; `cast_slice` would only pay on the aligned path that does not
+# exist for a row-major source), and `encoding_rs` — see `codepage.rs` for why
+# 117's single-byte table is 512 bytes of `const` rather than a dependency.
+
+[package]
+name = "stratum-dta"
+description = "Stratum's .dta reader and writer for Stata release 117, 118 and 119, including GSO/strL packing and the 117 codepage."
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = ["parallel"]
+parallel = ["stratum-data/parallel", "stratum-core/parallel"]
+# spec §32 / `04` §11.1: the ONLY way `tests/auto_dta.rs` runs. Off in CI, on
+# nowhere but a machine that has StataCorp's shipped `auto.dta` on disk.
+stata-local = []
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-core = { path = "../stratum-core", default-features = false }
+stratum-data = { path = "../stratum-data", default-features = false }
+memmap2 = { workspace = true }
+rustc-hash = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+# The fixture manifest in `tests/fixtures/MANIFEST.sha256` is `shasum -a 256`
+# format on purpose: a human checking whether a fixture moved should not need a
+# tool the repo invented. Declared here rather than in the workspace table
+# because this is the only crate that will ever want it — the same reasoning
+# `stratum-core` records for `statrs`.
+sha2 = "0.10"
+
+[lints.rust]
+# `deny`, not `forbid`. `memmap2::Mmap::map` is an `unsafe fn` by contract (the
+# mapping is UB if another process truncates the file underneath it), so exactly
+# one function in `reader.rs` carries `#[allow(unsafe_code)]` with the audit
+# written above it. `forbid` would make that unwritable and force the whole
+# reader onto `read_to_end`, which costs a full extra copy of every dataset a
+# researcher opens. THREAT_MODEL §6.1 records the accepted residual risk.
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

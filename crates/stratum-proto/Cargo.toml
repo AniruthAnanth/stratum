@@ -1,0 +1,49 @@
+# The frozen contract crate (CONTRACTS.md §§1–9 + §9.1, ARCHITECTURE.md §5).
+#
+# The dependency list is exhaustive by design: CONTRACTS.md's preamble names
+# serde, camino, thiserror, bitflags and a default-off specta, and ARCHITECTURE
+# §8.4 makes "nothing else" a CI invariant — this crate is reachable from
+# `stratum-parse`, which must build for wasm32-unknown-unknown. In particular
+# `time` is absent (A2): every wire timestamp is a `UnixMs`, a plain `u64`.
+
+[package]
+name = "stratum-proto"
+description = "Stratum's frozen wire contract: ids, blocks, results, engine protocol."
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+# Off by default everywhere below the desktop. `tauri-specta` turns it on in
+# `stratum-desktop` to generate apps/desktop/src/ipc/types.ts (CONTRACTS §12).
+specta = ["dep:specta"]
+
+[dependencies]
+serde = { workspace = true }
+camino = { workspace = true }
+thiserror = { workspace = true }
+bitflags = { workspace = true }
+# `std` and `camino` are added at this use site because the workspace table sets
+# `default-features = false` (08 §2.1's rule for the wasm-clean set): without
+# `std` specta implements `Type` for `str` but not `String`, and without `camino`
+# not for `Utf8PathBuf` — i.e. for almost nothing this crate declares.
+specta = { workspace = true, optional = true, features = ["std", "camino"] }
+
+[dev-dependencies]
+# The two encodings every wire type must survive (CONTRACTS §10 and §7.1).
+rmp-serde = { workspace = true }
+serde_json = { workspace = true }
+proptest = { workspace = true }
+
+[lints.rust]
+# There is no reason for this crate to contain a single unsafe block: it is data
+# declarations and two total functions.
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

@@ -1,0 +1,75 @@
+# Stratum — the Stata differential harness (plan W23, spec §32, ADR-013).
+#
+# ==========================================================================
+# THE ONLY WORKFLOW ALLOWED TO KNOW STATA EXISTS
+#
+# Spec §32: differential testing runs only where a licensed Stata is
+# installed, and the normal build must NEVER depend on one. That rule is
+# machine-checked from three directions, and this file is the single
+# sanctioned exception all three carve out:
+#
+#   * `scripts/check-topology.sh stata-free-ci` fails if any OTHER workflow
+#     names a Stata path, a Stata binary, `stratum-difftest` or
+#     `xtask difftest`;
+#   * `cargo xtask layering` fails if anything reachable from
+#     `default-members` reaches `stratum-difftest`;
+#   * this workflow is `workflow_dispatch`/schedule only, runs on a
+#     self-hosted runner, is guarded to this repository owner (a fork has no
+#     licensed runner and must not queue jobs waiting for one), and is NOT a
+#     required check anywhere.
+#
+# EXIT 77 IS NEUTRAL, NOT GREEN. The harness exits 77 when no usable Stata
+# exists (unset, missing, or licence-expired — all three verified by an
+# actual probe run, not a file-exists check). The wrapper step below reports
+# that as a skip notice and neutral outcome, so "the oracle was absent" is
+# visible as *did not run*; 0 is the only green, and any other exit is red.
+#
+# The corpus half of the harness needs no Stata and therefore does NOT live
+# here: it runs inside `cargo test --workspace` (the crate's own tests) on
+# every push, on all three OSes, via ci.yml — without ci.yml ever naming it.
+# ==========================================================================
+
+name: stata-diff
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly, Monday 06:00 UTC — fresh enough to catch drift on the licensed
+    # machine, rare enough not to camp on a self-hosted runner.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  difftest:
+    # A fork has no self-hosted licensed runner; without this guard its copy
+    # of the workflow would queue forever waiting for the `stata` label.
+    if: github.repository_owner == 'aniruth2207'
+    runs-on: [self-hosted, stata]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Full differential (corpus, then live)
+        id: difftest
+        shell: bash
+        run: |
+          set +e
+          cargo xtask difftest
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -eq 77 ]; then
+            echo "::notice title=stata-diff::SKIP — no usable Stata on this runner; the live differential did not run (exit 77, spec §32)."
+            exit 0
+          fi
+          exit "$rc"
+
+      - name: Committed-case hygiene (256 KB ceiling, canonical captures)
+        if: steps.difftest.outputs.rc == '0'
+        run: cargo xtask difftest --lint
+
+      - name: Negative self-test — a perturbed value must be caught
+        if: steps.difftest.outputs.rc == '0' || steps.difftest.outputs.rc == '77'
+        run: cargo xtask difftest --selftest-perturb

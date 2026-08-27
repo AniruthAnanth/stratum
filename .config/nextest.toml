@@ -1,0 +1,76 @@
+# cargo-nextest, everywhere (08 §10.3).
+#
+# Per-test process isolation is not a nicety here: the runtime has process-global
+# state (locale, thread-pool sizing, the allocator's arenas) and a panicking test
+# under libtest can poison the whole binary.
+
+nextest-version = { required = "0.9.70" }
+
+[profile.default]
+# A flaky statistical test is a bug, not a retry.
+retries = 0
+failure-output = "immediate-final"
+success-output = "never"
+status-level = "pass"
+final-status-level = "flaky"
+fail-fast = false
+slow-timeout = { period = "30s", terminate-after = 4 }
+leak-timeout = "500ms"
+
+[profile.ci]
+inherits = "default"
+retries = 0
+failure-output = "immediate-final"
+final-status-level = "slow"
+fail-fast = false
+# The workspace budget is `cargo nextest run --workspace` <= 90 s (08 §10.5); a
+# test that needs more than two minutes is doing integration work in a unit slot.
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+[profile.ci.junit]
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true
+
+# Spec §32. Every case shells out to a licensed Stata; the oracle is the
+# bottleneck, so cap concurrency rather than saturating the box, and give a
+# subprocess run of a .do file room to finish.
+[profile.difftest]
+inherits = "default"
+test-threads = 4
+retries = 0
+slow-timeout = { period = "120s", terminate-after = 5 }
+failure-output = "immediate"
+
+# Determinism gate (ADR-013): the SHA-256 must match at RAYON_NUM_THREADS in
+# {1, 2, 8}. Serial execution keeps the rayon pool size the only variable.
+[profile.determinism]
+inherits = "default"
+test-threads = 1
+retries = 0
+
+# ---------------------------------------------------------------------------
+# Overrides
+# ---------------------------------------------------------------------------
+
+# Property tests shrink, and shrinking a segmentation counterexample is slow but
+# not stuck.
+[[profile.default.overrides]]
+filter = "test(/^prop_/)"
+slow-timeout = { period = "120s", terminate-after = 4 }
+
+[[profile.ci.overrides]]
+filter = "test(/^prop_/)"
+slow-timeout = { period = "180s", terminate-after = 3 }
+
+# The e2e tiers drive a real app: they must not share a machine with anything
+# that competes for the window server (A20 / W25).
+[[profile.default.overrides]]
+filter = "package(stratum-e2e)"
+threads-required = "num-cpus"
+slow-timeout = { period = "180s", terminate-after = 2 }
+
+[[profile.ci.overrides]]
+filter = "package(stratum-e2e)"
+threads-required = "num-cpus"
+slow-timeout = { period = "300s", terminate-after = 2 }

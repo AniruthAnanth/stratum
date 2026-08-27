@@ -1,0 +1,91 @@
+# Stratum — the landing page. https://aniruthananth.github.io/stratum/
+#
+# site/ is a Next.js static export (basePath /stratum). On every push to `main`
+# that touches it, build with pnpm and publish out/ to the `gh-pages` branch,
+# which is what GitHub Pages serves (Settings → Pages → "Deploy from a branch",
+# branch gh-pages, folder /). Pull requests that touch site/ get the build
+# only, so a broken page is caught before it can merge.
+#
+# peaceiris/actions-gh-pages rather than actions/deploy-pages: the live site
+# already serves from the gh-pages branch, so this needs no Pages
+# reconfiguration and the by-hand deploy (push out/ to gh-pages) stays a valid
+# fallback. The action writes `.nojekyll` itself (enable_jekyll defaults to
+# false); site/scripts/postbuild.mjs writes one too, so the `_next/` directory
+# survives Pages either way.
+#
+# This workflow never needs Stata, on any runner, in any job.
+
+name: site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write # push to gh-pages (read-only on pull_request, where deploy is skipped)
+
+# Deploys are serialised and never cancelled: a half-pushed gh-pages is a
+# broken live site.
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: build-and-deploy
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      # next/font fetches Bricolage Grotesque from Google Fonts at build time
+      # and self-hosts it; the live page makes no external font request.
+      - name: pnpm build
+        run: pnpm build
+
+      - name: verify export
+        run: |
+          test -f out/index.html
+          test -f out/.nojekyll
+          test -f out/og.png
+          test -f out/icon.svg
+          grep -q '/stratum/_next/' out/index.html
+          if grep -Eq '(src|href)="/_next/' out/index.html; then
+            echo "asset URL missing the /stratum basePath" >&2; exit 1
+          fi
+          grep -q 'Star on GitHub' out/index.html
+          grep -q 'class="word pop">2005.' out/index.html
+
+      - name: deploy to gh-pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site/out
+          publish_branch: gh-pages
+          # One commit per deploy; the branch is build output, the source is
+          # site/ on main. Keeps gh-pages from accumulating hashed chunks.
+          force_orphan: true
+          commit_message: "Deploy site from ${{ github.sha }}"

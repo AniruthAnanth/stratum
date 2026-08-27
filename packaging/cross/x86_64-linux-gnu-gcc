@@ -1,0 +1,17 @@
+#!/bin/bash
+# zig-as-cross-cc shim (W22) — lets `cargo check --target x86_64-unknown-linux-gnu`
+# run a dependency graph containing C build scripts (aws-lc-sys, blake3) from a
+# macOS host. Installed into $(brew --prefix)/bin by `scripts/dev-setup.sh --cross`
+# under both names cc-rs probes: x86_64-linux-gnu-gcc and
+# x86_64-unknown-linux-gnu-gcc. See packaging/README.md, "Cross-target checks".
+#
+# cc-rs probes the shim, detects it answers as clang, and appends
+# `--target=<rust triple>` — which zig rejects ("unable to parse target query
+# 'x86_64-unknown-linux-gnu'"), so the shim drops any --target=* and pins zig's
+# own spelling of the triple instead.
+args=()
+for a in "$@"; do
+  [[ $a == --target=* ]] && continue
+  args+=("$a")
+done
+exec zig cc -target x86_64-linux-gnu "${args[@]}"

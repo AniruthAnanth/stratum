@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Stratum MIME declarations (design 08 §6.3). freedesktop has no types for
+     Stata, so we define our own. The .dta magic is verified from a real
+     StataMP 18.5 auto.dta (spec §0): modern files begin with the literal
+     ASCII "<stata_dta>"; pre-13 formats begin with the release byte.
+     Registering a MIME type never changes an existing user default. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="text/x-stata-do">
+    <comment>Stata do-file</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern="*.do"/>
+    <glob pattern="*.ado"/>
+  </mime-type>
+  <mime-type type="application/x-stata-dta">
+    <comment>Stata dataset</comment>
+    <glob pattern="*.dta"/>
+    <magic priority="80"><match type="string" offset="0" value="&lt;stata_dta&gt;"/></magic>
+    <magic priority="40"><match type="byte" offset="0" value="0x71"/></magic>
+    <magic priority="40"><match type="byte" offset="0" value="0x72"/></magic>
+  </mime-type>
+</mime-info>

@@ -1,0 +1,53 @@
+/* Classic output — 06 §9.2, §14.3.
+ *
+ * `white-space: pre` and no wrapping, as in Stata: a wrapped 80-column table is
+ * not the table. Horizontal overflow scrolls inside the card.
+ */
+
+.raw {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--border);
+}
+
+.raw[data-inline] {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.raw__text {
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-body);
+  white-space: pre;
+  tab-size: 8;
+}
+
+.raw__more {
+  display: flex;
+  gap: var(--sp-8);
+  margin: var(--sp-6) 0 0 0;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-meta);
+}
+
+.raw__load {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--text-label);
+  font-size: var(--fs-micro);
+  cursor: default;
+}
+
+.raw__load:hover {
+  color: var(--text-body);
+  border-bottom-color: var(--border-strong);
+}

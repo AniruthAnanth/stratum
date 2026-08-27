@@ -1,0 +1,572 @@
+# Stratum — the two-tier end-to-end harness (plan W25, ADR-011, Q16).
+#
+# ==========================================================================
+# WHAT THIS WORKFLOW CLAIMS, AND WHAT IT DOES NOT
+#
+# Tier 1 — the host harness — runs on macOS, Windows and Linux. It drives the
+# app through the same command registry the keymap and the command palette use.
+# It CANNOT catch a broken key binding or a CSS regression, and nothing here
+# says it can.
+#
+# Tier 2 — real WebDriver input through tauri-driver — runs on Windows and
+# Linux ONLY. WKWebView exposes no WebDriver endpoint, so tauri-driver cannot
+# attach on macOS. That is Q16 and ADR-011; macOS is Tier-1 only and this file
+# says so rather than quietly running two of three jobs and calling it three.
+#
+# Spec §31's "UI automation eventually on all major platforms" is, today, real
+# input on two of three and host-level automation on all three.
+# ==========================================================================
+#
+# Every job disappears on its own when its subject is absent, the same way
+# ci.yml's `preflight` works: a job that is red for a unit nobody has started
+# teaches people to ignore red.
+#
+# ==========================================================================
+# TWO REGISTRATIONS THIS WORKFLOW IS STILL WAITING ON (R0: not W25's files)
+#
+#   1. xtask/src/main.rs (W00) — `mod e2e;`, the `E2e(e2e::Cmd)` variant and the
+#      `Cmd::E2e(c) => e2e::run(&ctx, &c)` arm. Verified in repair rounds 1 and
+#      2 by applying those three lines locally: `cargo clippy -p xtask
+#      --all-targets --all-features -- -D warnings` clean, `cargo test -p xtask`
+#      +2 passing (69 from 67), and all four modes exercised end to end:
+#      `--tier 1` 56 passed / 2 ignored with A-E all run, `--tier 2` refused on
+#      macOS with the Q16 reason, `--check-fence` clean on the real 402,256-byte
+#      release binary and exit 1 on a seeded breach, `--compare` 5 transcripts
+#      identical across 3 platforms with 15 files read. Reverted, not kept.
+#      Until they land, `preflight.xtask` is false and the jobs run the command
+#      xtask wraps, so the harness is exercised either way.
+#
+#   2. apps/desktop/src-tauri/{Cargo.toml,src/main.rs} (W17) — `[features] e2e`
+#      and `mod e2e_cmds;`. Same verification: declaring the module lifted
+#      `cargo test -p stratum-desktop` from 19 to 23 passing with clippy
+#      -D warnings clean, and `--features e2e` then failed on exactly one thing,
+#      the missing `tauri` dependency, which is W17's to add.
+#
+#      NARROWED IN ROUND 3. `e2e_cmds.rs` is no longer compiled by nothing:
+#      `crates/stratum-e2e/src/host.rs` includes it with a `#[path]`, so its
+#      ~460 non-Tauri lines and its four tests run in `cargo test --workspace`
+#      on three OSes, and `stratum-e2e-host-probe` gives the fence a real
+#      linked artifact to run `--require-present` against on every push. What
+#      is STILL owed is the thing only W17 can give: the shipping crate
+#      compiling the module, which is what makes the fence a differential over
+#      the feature gate rather than a scan of a binary that never had a gate.
+#
+# `preflight` probes for both rather than assuming, so each job upgrades itself
+# the moment the lines land and nobody has to remember to come back here.
+#
+# NEITHER REGISTRATION GATES THE GATES ANY MORE (repair round 2).
+# Both CI assertions this workflow makes on its own behalf — ADR-011's fence and
+# spec §38-E's cross-platform comparison — are now `cargo run -p stratum-e2e
+# --bin stratum-e2e-gate`, a binary in W25's own crate that is compiled, clippy-
+# covered and unit-tested by every `cargo test --workspace`. Round 1 ran a
+# `grep` loop and a `diff -r` here instead, i.e. a second implementation of a
+# security gate written in shell, because the first one lived in a file no
+# compiler had ever seen. The xtask branches below now call the same binary, so
+# the two paths cannot drift and W22 can put the identical line in the packaging
+# smoke job (acceptance bullet 3 names `smoke.yml`, which W25 does not own).
+# ==========================================================================
+
+name: e2e
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+
+jobs:
+  # -------------------------------------------------------------------------
+  preflight:
+    name: preflight
+    runs-on: ubuntu-22.04
+    outputs:
+      harness: ${{ steps.probe.outputs.harness }}
+      xtask: ${{ steps.probe.outputs.xtask }}
+      packaged: ${{ steps.probe.outputs.packaged }}
+      runner: ${{ steps.probe.outputs.runner }}
+      desktop: ${{ steps.probe.outputs.desktop }}
+      hosted: ${{ steps.probe.outputs.hosted }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          emit() { echo "$1=$2" >>"$GITHUB_OUTPUT"; echo "$1=$2"; }
+          emit harness "$([[ -f crates/stratum-e2e/Cargo.toml ]] && echo true || echo false)"
+          # `cargo xtask e2e` needs three lines in xtask/src/main.rs, which is
+          # W00's file — see the header of xtask/src/e2e.rs. Until they land the
+          # jobs below run the command xtask wraps, so the harness is exercised
+          # either way and the registration is not a blocker for anybody.
+          emit xtask "$(grep -qE '^mod e2e;' xtask/src/main.rs && echo true || echo false)"
+          # Tier 2 needs a packaged application driven by tauri-driver: W17 + W22.
+          emit packaged "$([[ -f apps/desktop/src-tauri/tauri.conf.json ]] && echo true || echo false)"
+          # The FENCE needs far less than tier 2 does — only a host binary to
+          # scan. `stratum-desktop` is a workspace member today, so gating the
+          # fence on tauri.conf.json (as this file did until repair round 1) made
+          # the one security-shaped assertion in the whole workflow skip silently
+          # rather than run. ADR-011's gate must be the earliest thing here, not
+          # the latest: it is what stands between a test-only IPC command and a
+          # remote-control backdoor in a shipped build.
+          emit desktop "$([[ -f apps/desktop/src-tauri/Cargo.toml ]] && echo true || echo false)"
+          # Scenario D.4 — "the saved .do runs through the headless runtime" —
+          # needs a `stratum run` to point STRATUM_BIN at. W26's
+          # `d4_is_still_actually_blocked_on_w09` names this job as the half CI
+          # owes, and `crates/stratum-cli/src/cmd/run.rs` is the predicate W26
+          # keyed it on, so it is the predicate used here too rather than a
+          # second guess at the same thing.
+          emit runner "$([[ -f crates/stratum-cli/src/cmd/run.rs ]] && echo true || echo false)"
+          # Is the host half of the bridge actually built into that binary? Both
+          # halves are needed for the fence to be a DIFFERENTIAL proof rather
+          # than a vacuous one — see the `fence` job. `mod e2e_cmds` lives in
+          # W17's main.rs and the `e2e` feature in W17's manifest; W25 owns
+          # neither (R0), and `e2e_cmds.rs` records the exact lines it needs.
+          hosted=false
+          if grep -qE '^[[:space:]]*mod e2e_cmds;' apps/desktop/src-tauri/src/main.rs \
+             && grep -qE '^[[:space:]]*e2e[[:space:]]*=' apps/desktop/src-tauri/Cargo.toml; then
+            hosted=true
+          fi
+          emit hosted "$hosted"
+
+  # -------------------------------------------------------------------------
+  # Tier 1. All three OSes. Gates M4 and M5.
+  tier1:
+    name: tier1-${{ matrix.os }}
+    needs: preflight
+    if: needs.preflight.outputs.harness == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: e2e-tier1-${{ matrix.os }}
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+
+      # Needed either way, which is why it is not gated. With the packaged host
+      # it builds the bundle `frontendDist` embeds; without it, it is the
+      # pre-host bridge's own dependency tree.
+      - name: pnpm install
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+
+      # ---------------------------------------------------------------------
+      # THE HOST. W17 has landed, so tier 1 drives the real app rather than the
+      # node bridge — the second of the three things
+      # `w17s_packaged_host_is_the_one_tier1_drives` in tests/e2e/harness.rs
+      # asserts, and it asserts it against THIS job by name so the two cannot
+      # drift. `preflight.hosted` is the same predicate the fence and tier 2
+      # already use: `mod e2e_cmds;` in W17's main.rs plus the `e2e` feature in
+      # W17's manifest, because `--features e2e` is a hard error without them.
+      #
+      # `pnpm build` is not optional and `beforeBuildCommand` does not cover it:
+      # that hook belongs to `tauri build`/`tauri dev`, and this is a plain
+      # `cargo build`. The `e2e` feature implies `custom-protocol`, so the
+      # context macro embeds `apps/desktop/dist` at compile time — a host built
+      # without it renders nothing on a runner where no dev server is listening,
+      # and every scenario would fail on a blank webview.
+      # ---------------------------------------------------------------------
+      - name: the frontend bundle the host embeds
+        if: needs.preflight.outputs.hosted == 'true'
+        working-directory: apps/desktop
+        run: pnpm build
+
+      # WebKitGTK is a BUILD dependency of the host on Linux, not just a runtime
+      # one: `tauri` links against it through `webkit2gtk-sys`' pkg-config probe,
+      # and the runner image ships the runtime without the headers. `xvfb` is the
+      # other half — the webview needs a display, see the run step below.
+      - name: linux webkit
+        if: runner.os == 'Linux' && needs.preflight.outputs.hosted == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev xvfb
+
+      - name: the packaged host, built with the e2e control surface
+        if: needs.preflight.outputs.hosted == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p stratum-cli
+          cargo run -p xtask -- dist stage  # Tauri's build script requires the sidecar on disk
+          cargo build -p stratum-desktop --features e2e
+          ext=""
+          [[ "$RUNNER_OS" == "Windows" ]] && ext=".exe"
+          echo "STRATUM_E2E_APP=$PWD/target/debug/stratum-desktop$ext" >>"$GITHUB_ENV"
+
+      # D.4's half of Scenario D runs the SAVED .do file through the headless
+      # runtime, which is the whole point of spec §6: what the notebook writes is
+      # an ordinary do-file and an ordinary do-file runner can run it. It needs a
+      # binary, and building one is CI's half of the job — the other half is
+      # W26 deleting the `#[ignore]` its own tripwire tells it to delete.
+      # Building it unconditionally would fail the job for every unit while
+      # `stratum-cli` is still being written, so it follows W26's own predicate.
+      - name: the headless runtime, for Scenario D.4
+        if: needs.preflight.outputs.runner == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p stratum-cli --bin stratum
+          ext=""
+          [[ "$RUNNER_OS" == "Windows" ]] && ext=".exe"
+          echo "STRATUM_BIN=$PWD/target/debug/stratum$ext" >>"$GITHUB_ENV"
+
+      # `--require-complete` is deliberately NOT passed here, and that is not the
+      # same as not gating completeness.
+      #
+      # The flag is all-or-nothing over the whole run: it fails on any blocked
+      # step in any scenario. A and D and E have none as of repair round 3, but
+      # B still has two (W09's engine) and C has six (W09, W16's command bar,
+      # W18's Data Editor), so switching it on here would paint the job red for
+      # work nobody has started — which is how a team learns to ignore red, and
+      # is the argument ci.yml's preflight already makes.
+      #
+      # Completeness is instead asserted per scenario, where it can be true of
+      # some and not others: `scenario_a_is_complete_not_merely_green` in
+      # tests/e2e/harness.rs requires A, D and E to run with ZERO blocked steps
+      # and fails if any of them regresses. Turn the flag on here when B and C
+      # join them.
+      - name: scenarios A, B, C, D and E
+        shell: bash
+        env:
+          STRATUM_E2E_TRANSCRIPT_DIR: ${{ github.workspace }}/target/e2e/${{ matrix.os }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.preflight.outputs.xtask }}" == "true" ]]; then
+            cmd=(cargo xtask e2e --tier 1 --transcript-dir "$STRATUM_E2E_TRANSCRIPT_DIR")
+            # `--app` as well as the exported variable: which host answered is
+            # then in the command line of the failing step rather than in an
+            # environment set two steps earlier.
+            if [[ -n "${STRATUM_E2E_APP:-}" ]]; then
+              cmd+=(--app "$STRATUM_E2E_APP")
+            fi
+          else
+            cmd=(cargo nextest run -p stratum-e2e --features live --no-fail-fast)
+          fi
+          # The packaged host is a WebKitGTK application: its webview needs a
+          # display to exist in, and a GitHub Linux runner has none. Same reason
+          # as tier 2's xvfb, and only when there is a packaged host to run —
+          # the node bridge needs no display. An array, not `export -f`, because
+          # a function defined here is not inherited by xvfb-run's fresh shell.
+          if [[ "$RUNNER_OS" == "Linux" && -n "${STRATUM_E2E_APP:-}" ]]; then
+            xvfb-run --auto-servernum "${cmd[@]}"
+          else
+            "${cmd[@]}"
+          fi
+
+      # Spec §38-E's second clause: the same analysis file must produce
+      # equivalent runtime results on every platform. The transcript is
+      # host-free and duration-free by construction, so a difference between two
+      # platforms is a difference in what the app DID.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: e2e-transcript-${{ matrix.os }}
+          path: target/e2e/${{ matrix.os }}
+          retention-days: 3
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------------
+  cross-platform:
+    name: cross-platform (§38-E)
+    needs: [preflight, tier1]
+    if: needs.preflight.outputs.harness == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: transcripts
+          pattern: e2e-transcript-*
+      - name: the three platforms did the same thing
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dirs=(transcripts/*/)
+          if (( ${#dirs[@]} < 2 )); then
+            echo "::notice::fewer than two platforms produced a transcript; nothing to compare"
+            exit 0
+          fi
+          # `stratum_e2e::compare` rather than `diff -r`: a shell diff cannot
+          # tell "the platforms agreed" from "one platform produced no
+          # transcript at all", and the second of those is precisely the failure
+          # §38-E is about. The gate reports the file count it actually read.
+          if [[ "${{ needs.preflight.outputs.xtask }}" == "true" ]]; then
+            cargo xtask e2e --compare transcripts
+          else
+            cargo run -q -p stratum-e2e --bin stratum-e2e-gate -- compare transcripts
+          fi
+
+  # -------------------------------------------------------------------------
+  # Tier 2. Windows and Linux only — see the header.
+  tier2:
+    name: tier2-${{ matrix.os }}
+    needs: preflight
+    # `hosted` as well as `packaged`: the build step below is `--features e2e`,
+    # which is a hard error until that feature exists in W17's manifest. Gating
+    # on the config file alone would make this job fail for a reason that is not
+    # a defect in anything it tests.
+    if: >-
+      needs.preflight.outputs.harness == 'true'
+      && needs.preflight.outputs.packaged == 'true'
+      && needs.preflight.outputs.hosted == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: e2e-tier2-${{ matrix.os }}
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      # webkit2gtk's WebDriver is a separate package from the runtime, and the
+      # Tauri app will not start without the runtime either. The `-dev` packages
+      # are a third thing again: `cargo build -p stratum-desktop` below links
+      # against webkit2gtk through `webkit2gtk-sys`' pkg-config probe, and the
+      # runner image ships the runtime without the headers.
+      - name: linux webdriver
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-driver xvfb libwebkit2gtk-4.1-0 \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: pnpm install
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+
+      # `--features e2e` implies `custom-protocol`, under which
+      # `tauri::generate_context!` embeds `frontendDist` at COMPILE time and
+      # panics outright when the directory is absent. `beforeBuildCommand` does
+      # not run it: that hook belongs to `tauri build`, and this is `cargo build`.
+      - name: the frontend bundle the host embeds
+        working-directory: apps/desktop
+        run: pnpm build
+
+      # Tauri's build script refuses to compile without the externalBin sidecar
+      # on disk — the same staging tier1 does (run 33098599571 failed here with
+      # "resource path `binaries/stratum-<host-triple>` doesn't exist").
+      - name: stage engine sidecar
+        run: |
+          cargo build -p stratum-cli
+          cargo run -p xtask -- dist stage
+
+      - name: build the app with the e2e feature
+        run: cargo build -p stratum-desktop --features e2e
+
+      - name: scenarios A, B and C through real input
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=target/debug/stratum-desktop
+          [[ "${{ runner.os }}" == "Windows" ]] && app=target/debug/stratum-desktop.exe
+          # The same xtask-or-the-command-it-wraps shape as tier1 and the two
+          # gates. Round 1 called `cargo xtask` here unconditionally while
+          # gating the job on `packaged`+`hosted` only, so the day W17 and W22
+          # land before W00's three lines this job would have failed with
+          # "unrecognized subcommand 'e2e'" — a red job that says nothing about
+          # what it tests. Fixed in round 2.
+          # The driver is one single-quoted script rather than a shell function,
+          # and every input reaches it as an ordinary environment variable.
+          # `export -f` does not survive the trip: bash exports a function as
+          # `BASH_FUNC_run%%`, `xvfb-run` is a /bin/sh script, and sh drops
+          # environment entries whose names are not valid identifiers — so the
+          # function never reached `bash -c` and the job died with
+          # `run: command not found` (127), which is exactly what run
+          # 33116959958 did.
+          driver='
+            set -euo pipefail
+            run() {
+              if [[ "$STRATUM_E2E_XTASK" == "true" ]]; then
+                cargo xtask e2e --tier 2 --app "$STRATUM_E2E_APP" --scenario "$1"
+              else
+                cargo nextest run -p stratum-e2e --features live --features tier2 \
+                  -E "test(/scenario_$1_/)"
+              fi
+            }
+            run a && run b && run c
+          '
+          export STRATUM_E2E_APP="$app"
+          export STRATUM_E2E_XTASK="${{ needs.preflight.outputs.xtask }}"
+          export STRATUM_E2E_WEBDRIVER="${STRATUM_E2E_WEBDRIVER:-http://127.0.0.1:4444}"
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            # A WebDriver session still needs a display for the webview to exist
+            # in; xvfb is what makes "real input" possible on a headless runner.
+            xvfb-run --auto-servernum bash -c "$driver"
+          else
+            bash -c "$driver"
+          fi
+
+  # -------------------------------------------------------------------------
+  # The fence. ADR-011: a test-only IPC command that reaches production is a
+  # remote-control backdoor.
+  #
+  # W22 owns smoke.yml and the packaged artifacts; this job asserts the same
+  # property against a plain release build, so the fence is checked from the day
+  # the host BINARY exists rather than from the day packaging does. That is why
+  # it is gated on `desktop` (the crate) and not on `packaged` (tauri.conf.json).
+  #
+  # A NEGATIVE assertion alone can pass because the thing it looks for was never
+  # built — which is exactly the state of the tree today, since `e2e_cmds.rs` is
+  # declared by no module tree. So the job asserts BOTH directions the moment it
+  # can: with `--features e2e` the names must be PRESENT, and without it they
+  # must be ABSENT. Until W17 wires the module up, only the negative half runs
+  # and the job says out loud that it is the weaker claim, rather than reporting
+  # a green tick that means nothing.
+  fence:
+    name: e2e fence
+    needs: preflight
+    if: needs.preflight.outputs.desktop == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: e2e-fence
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # ---------------------------------------------------------------------
+      # THE POSITIVE CONTROL, IN TWO STRENGTHS. Read the difference.
+      #
+      # Without one, "absent from the shipped binary" is satisfied by a fence
+      # that greps for a string no build ever emits, on every binary, forever.
+      #
+      # (a) ALWAYS RUNS. `stratum-e2e-host-probe` is a real linked executable
+      #     built from `apps/desktop/src-tauri/src/e2e_cmds.rs` itself, through
+      #     `stratum_e2e::host` — repair round 3, when `e2e_cmds.rs` stopped
+      #     being compiled by nothing. It proves the scanner finds the HOST'S
+      #     OWN command names in a native artifact of this runner's format. It
+      #     does NOT prove the `e2e` cargo feature gate is what keeps them out
+      #     of `stratum-desktop`.
+      # (b) NEEDS W17. That stronger claim is a differential over two builds of
+      #     `stratum-desktop`, and it needs `[features] e2e = []` in its
+      #     Cargo.toml and `mod e2e_cmds;` in its main.rs. `preflight.hosted`
+      #     probes for both. Neither is W25's file (R0).
+      # ---------------------------------------------------------------------
+      - name: the scanner finds the host's own command names in a real binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p stratum-e2e --bin stratum-e2e-host-probe
+          cargo run -q -p stratum-e2e --bin stratum-e2e-gate -- \
+            fence --require-present target/debug/stratum-e2e-host-probe
+          echo "::notice::positive control (a): the scanner sees e2e_cmds.rs's own"
+          echo "::notice::constants in a linked artifact. This is NOT the feature-gate"
+          echo "::notice::differential — see (b) below."
+
+      # BOTH builds below link `stratum-desktop`, and on Linux that means
+      # webkit2gtk through `webkit2gtk-sys`' pkg-config probe. The runner image
+      # carries the runtime, not the headers.
+      - name: linux webkit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev
+
+      # Only the `--features e2e` half of the differential needs a bundle: that
+      # feature implies `custom-protocol`, under which `generate_context!`
+      # embeds `frontendDist` at compile time and panics when it is absent. The
+      # release half is `cfg(dev)` and resolves `devUrl` instead. Gating these on
+      # `hosted` keeps the node toolchain off the job entirely while the positive
+      # control is the only half that can run.
+      - uses: pnpm/action-setup@v4
+        if: needs.preflight.outputs.hosted == 'true'
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        if: needs.preflight.outputs.hosted == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: the frontend bundle the e2e build embeds
+        if: needs.preflight.outputs.hosted == 'true'
+        working-directory: apps/desktop
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: the e2e build DOES carry the commands
+        if: needs.preflight.outputs.hosted == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p stratum-cli
+          cargo run -p xtask -- dist stage  # Tauri's build script requires the sidecar on disk
+          cargo build -p stratum-desktop --features e2e
+          bin=target/debug/stratum-desktop
+          # `fence --require-present` is the inverse assertion, and it names the
+          # drift in its own error: the command names live once, in
+          # `stratum_e2e::fence::FENCED_COMMANDS`, and `tests/e2e/harness.rs`
+          # asserts they still equal the `pub const`s in e2e_cmds.rs.
+          if [[ "${{ needs.preflight.outputs.xtask }}" == "true" ]]; then
+            cargo xtask e2e --check-fence "$bin" --require-present
+          else
+            cargo run -q -p stratum-e2e --bin stratum-e2e-gate -- fence --require-present "$bin"
+          fi
+
+      - name: a release build has no e2e command
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.preflight.outputs.hosted }}" != "true" ]]; then
+            echo "::notice::e2e_cmds is not yet declared by apps/desktop/src-tauri/src/main.rs"
+            echo "::notice::(W17), so this asserts only that the release binary is clean — it is"
+            echo "::notice::not yet a differential proof that the feature gate is what keeps it"
+            echo "::notice::clean. The positive control above turns on with W17."
+          fi
+          cargo build -p stratum-cli
+          cargo run -p xtask -- dist stage  # Tauri's build script requires the sidecar on disk
+          cargo build -p stratum-desktop --release
+          bin=target/release/stratum-desktop
+          if [[ "${{ needs.preflight.outputs.xtask }}" == "true" ]]; then
+            cargo xtask e2e --check-fence "$bin"
+          else
+            cargo run -q -p stratum-e2e --bin stratum-e2e-gate -- fence "$bin"
+          fi

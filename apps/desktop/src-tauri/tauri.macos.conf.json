@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "category": "DeveloperTool",
+    "shortDescription": "Interactive statistical IDE",
+    "longDescription": "Stratum is an interactive statistical IDE where code, data, results, reproducibility and AI understand each other.",
+    "copyright": "© 2026 Stratum contributors",
+    "icon": [
+      "../../../packaging/icons/32x32.png",
+      "../../../packaging/icons/128x128.png",
+      "../../../packaging/icons/128x128@2x.png",
+      "../../../packaging/icons/icon.icns"
+    ],
+    "externalBin": ["binaries/stratum"],
+    "resources": { "binaries/ado/base/a/auto.dta": "ado/base/a/auto.dta" },
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "entitlements": "entitlements.plist",
+      "hardenedRuntime": true,
+      "dmg": {
+        "windowSize": { "width": 660, "height": 420 },
+        "appPosition": { "x": 180, "y": 200 },
+        "applicationFolderPosition": { "x": 480, "y": 200 }
+      }
+    }
+  }
+}

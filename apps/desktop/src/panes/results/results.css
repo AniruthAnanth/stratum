@@ -1,0 +1,57 @@
+/* Results pane — 06 §6.1, §9.2, §14.4. */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.results__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 var(--sp-12);
+  /* Stata's Results pane does not wrap, and neither does ours. */
+  overscroll-behavior: contain;
+}
+
+.results[data-mode="classic"] .results__scroll {
+  padding: var(--sp-8) var(--sp-12);
+}
+
+.results__empty {
+  margin: 0;
+  padding: var(--sp-24) 0;
+  color: var(--text-meta);
+}
+
+/* The live region is announced, not shown: the sentence duplicates the card. */
+.results__live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.results__classic {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-body);
+  white-space: pre;
+  tab-size: 8;
+}
+
+/* 06 §9.2: the command echo in the command-name ink at weight 600. */
+.results__echo {
+  color: var(--text-heading);
+  font-weight: var(--fw-semibold);
+}

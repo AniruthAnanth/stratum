@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Stratum
+GenericName=Statistical IDE
+Comment=Interactive statistical IDE where code, data, results, reproducibility and AI understand each other
+Exec=stratum-desktop %U
+Icon=stratum-desktop
+Terminal=false
+Categories=Development;Science;Math;
+MimeType=text/x-stata-do;application/x-stata-dta;x-scheme-handler/stratum;
+StartupWMClass=Stratum
+Keywords=stata;statistics;data;regression;do-file;

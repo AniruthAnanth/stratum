@@ -1,0 +1,7 @@
+1..1	Simple                	cr       	canonical=display
+2..2	Directive/DelimitSemi 	cr->semi 
+3..4	Simple                	semi     	canonical=summarize
+4..6	Trivia                	semi     
+6..9	Brace/Forvalues       	semi     	canonical=forvalues
+9..10	Directive/DelimitCr   	semi->cr 
+11..11	Simple                	cr       	canonical=display

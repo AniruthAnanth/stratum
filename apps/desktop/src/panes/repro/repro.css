@@ -1,0 +1,156 @@
+/* The Reproducibility pane — spec §16, 06 §14.4, §14.5.
+ *
+ * A checklist, not a dashboard: no cards, no progress ring, no percentage. Five
+ * rows at the grid row height the rest of the product uses, one hairline between
+ * sections, and the mark carried by an icon shape as well as by ink (06 §17).
+ * Every colour is a token; there is no hex literal in this file.
+ */
+
+.repro {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--canvas);
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.repro__rows,
+.repro__findings,
+.repro__suppressed {
+  margin: 0;
+  padding: var(--sp-4) 0;
+  list-style: none;
+}
+
+.repro__findings,
+.repro__suppressed {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.repro__row,
+.repro__finding {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-height: var(--h-grid-row);
+  padding: 0 var(--sp-8);
+}
+
+.repro__mark {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+/* The four marks. `unverified` is meta ink on purpose: it is an absence of
+ * evidence, not a problem, and painting it amber would cry wolf on every file
+ * nobody has verified yet. */
+[data-mark="ok"] .repro__mark {
+  color: var(--state-ok);
+}
+[data-mark="warn"] .repro__mark {
+  color: var(--state-stale);
+}
+[data-mark="bad"] .repro__mark {
+  color: var(--state-failed);
+}
+[data-mark="unverified"] .repro__mark {
+  color: var(--text-meta);
+}
+[data-mark="unverified"] .repro__label {
+  color: var(--text-meta);
+}
+
+.repro__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Visually hidden, still announced. The row's mark is otherwise carried only by
+ * an `aria-hidden` icon, and a screen-reader user would hear five identical
+ * sentences with no verdict attached. */
+.repro__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.repro__finding {
+  padding: 0;
+}
+
+.repro__finding-button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  width: 100%;
+  min-height: var(--h-grid-row);
+  padding: 0 var(--sp-8);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+.repro__finding-button:hover {
+  background: var(--input);
+}
+
+.repro__lint {
+  flex: 0 0 auto;
+  color: var(--text-meta);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+}
+
+.repro__finding-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repro__fix {
+  flex: 0 0 auto;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-micro);
+}
+
+.repro__idle {
+  margin: 0;
+  padding: var(--sp-8);
+  color: var(--text-meta);
+}
+
+.repro__foot {
+  margin-top: auto;
+  padding: var(--sp-8);
+  border-top: var(--hairline) solid var(--border);
+}
+
+.repro__verify {
+  width: 100%;
+  height: 24px;
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  cursor: default;
+}
+.repro__verify:hover {
+  border-color: var(--accent);
+}

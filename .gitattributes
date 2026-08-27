@@ -1,0 +1,47 @@
+# 08 §11.5.
+#
+# `eol=lf` on `.do` files is not cosmetic. CodeHash is computed over the
+# canonical token stream of LF-normalized text, so a CRLF checkout on Windows
+# would make every block hash differ from the same file on macOS — marking a
+# whole file stale on checkout and breaking the cross-platform golden comparison
+# in spec §38 Scenario E.
+
+* text=auto eol=lf
+
+*.do          text eol=lf
+*.ado         text eol=lf
+*.sthlp       text eol=lf
+*.smcl        text eol=lf
+*.rs          text eol=lf
+*.toml        text eol=lf
+*.json        text eol=lf
+*.ts          text eol=lf
+*.tsx         text eol=lf
+*.css         text eol=lf
+*.md          text eol=lf
+*.sh          text eol=lf
+*.ps1         text eol=crlf
+
+*.dta         binary
+*.png         binary
+*.jpg         binary
+*.icns        binary
+*.ico         binary
+*.woff2       binary
+*.p12         binary
+*.bin         binary
+
+# Goldens are the oracle's recorded behaviour; a diff in one is a numeric change
+# a human must look at, so keep them out of the language statistics and out of
+# the default diff view.
+tests/difftest/cases/**/golden/*.jsonl text eol=lf linguist-generated
+tests/difftest/cases/**/golden/*.log   text eol=lf linguist-generated
+tests/golden/**                        text eol=lf
+tests/fixtures/sdp1/*.bin              binary
+
+Cargo.lock                                        linguist-generated
+pnpm-lock.yaml                                    linguist-generated
+crates/stratum-workspace-hack/Cargo.toml          linguist-generated
+crates/stratum-tokens/src/generated.rs            linguist-generated
+apps/desktop/resources/tokens.generated.css       linguist-generated
+apps/desktop/src/ipc/*.ts                         linguist-generated

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged into the generated Info.plist at bundle time (design 08 §6.3).
+  `cargo xtask dist stage` copies this file to apps/desktop/src-tauri/Info.plist
+  (untracked, generated) before `tauri build`; the Tauri bundler merges any
+  Info.plist found next to tauri.conf.json over its generated plist.
+
+  THE RULE (spec §0 measured fact): Stata declares itself the system default
+  for com.stata.stata.{do,dta} with LSIsAppleDefaultForType. We register as a
+  capable ALTERNATE and never steal a double-click. LSHandlerRank below is the
+  machine-checked form of that promise (smoke.yml asserts it).
+
+  IMPORT, do not EXPORT, the UTIs: Stata owns them. Exporting a conflicting
+  declaration produces nondeterministic Launch Services resolution.
+-->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>        <string>Stata Do-file</string>
+      <key>CFBundleTypeRole</key>        <string>Editor</string>
+      <key>LSHandlerRank</key>           <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+        <array><string>com.stata.stata.do</string></array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>        <string>Stata Data File</string>
+      <key>CFBundleTypeRole</key>        <string>Editor</string>
+      <key>LSHandlerRank</key>           <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+        <array><string>com.stata.stata.dta</string></array>
+    </dict>
+  </array>
+  <key>UTImportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key> <string>com.stata.stata.do</string>
+      <key>UTTypeConformsTo</key> <array><string>public.plain-text</string></array>
+      <key>UTTypeDescription</key><string>Stata Do-file</string>
+      <key>UTTypeTagSpecification</key>
+        <dict><key>public.filename-extension</key><array><string>do</string></array></dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key> <string>com.stata.stata.dta</string>
+      <key>UTTypeConformsTo</key> <array><string>public.data</string></array>
+      <key>UTTypeDescription</key><string>Stata Dataset</string>
+      <key>UTTypeTagSpecification</key>
+        <dict><key>public.filename-extension</key><array><string>dta</string></array></dict>
+    </dict>
+  </array>
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLName</key>    <string>Stratum</string>
+    <key>CFBundleURLSchemes</key> <array><string>stratum</string></array>
+  </dict></array>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>Stratum reads and writes your analysis files and datasets.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Stratum opens datasets you have downloaded.</string>
+</dict>
+</plist>

@@ -1,0 +1,72 @@
+# ARCHITECTURE.md §5: "`summarize`, `regress`, `predict`, `tabulate`,
+# `correlate`/`pwcorr`, `ttest`; `StatResult { classic_text -> Vec<StyledRun>,
+# payload, results }`; `ResultSet` (insertion-ordered `r()`/`e()`); byte-exact
+# classic renderers; its own `EffectTable` rows."
+#
+# The dependency list, and why each entry is load-bearing:
+#
+#   stratum-proto   `StyledRun`/`StyleId` and every result payload are declared
+#                   THERE (A10, A12). `classic_text` returns proto runs, and the
+#                   card payloads this crate fills are the frozen wire shapes.
+#   stratum-core    `fmt` (the ONE `%g`), `dist`, `gram`, `sweep`, `missing`,
+#                   `reduce`. ADR-004: no BLAS, no `mul_add`, transcendentals
+#                   through `libm` only — all of that lives there and this crate
+#                   must not grow a second copy of any of it.
+#   stratum-data    `Column`/`Sample`/`ValueLabel`. `05` §2 wanted a private
+#                   `NumericColumn` trait; ARCHITECTURE §1 (L/T) ruled that a
+#                   local copy is the twin A10 bans, so we take the real one.
+#   stratum-effects the `EffectTable` trait `src/effects.rs` implements (A1).
+#                   Declared there rather than in `stratum-runtime` precisely so
+#                   this crate can implement it without a Cargo cycle.
+#   blake3          `e(sample)`'s comparability key (`EstimationPayload
+#                   ::sample_hash`, spec §19). Not a security boundary.
+#   serde           `ResultSet` and the stat payloads round-trip to the sidecar
+#                   and to the AI context (spec §22).
+#
+# NOT taken: `faer` (`05` §1 wanted it for the Gram; ADR-004 and A19 removed it —
+# `stratum_core::gram` is the hand-written kernel and its association order is
+# part of the golden values), `rayon` (every parallel scan here goes through
+# `stratum_core::reduce::map_reduce_blocks` via `stratum-data`, so this crate
+# never names a thread pool), and `statrs` (`05` §13 makes it a dev-only oracle
+# and it is already `stratum-core`'s dev-dependency, where `dist` lives).
+
+[package]
+name = "stratum-stats"
+description = "Stratum's estimation commands: summarize, regress, predict, tabulate, correlate/pwcorr and ttest, with byte-exact classic renderers."
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-core = { path = "../stratum-core" }
+stratum-data = { path = "../stratum-data" }
+stratum-effects = { path = "../stratum-effects" }
+# NOT in ARCHITECTURE §5's dependency row for this crate, and forced by the
+# trait signature: `EffectTable::effects` takes `&stratum_parse::CommandAst`,
+# and `stratum-effects` does not re-export that type, so `src/effects.rs`
+# cannot name it without a direct path dependency. `stratum-effects` already
+# depends on `stratum-parse`, so this adds no edge to the graph, only a name.
+# Escalated in W05's return: one `pub use stratum_parse::CommandAst;` in
+# `stratum-effects/src/lib.rs` would remove it.
+stratum-parse = { path = "../stratum-parse" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+pretty_assertions = { workspace = true }
+
+[lints.rust]
+# Every kernel here is safe code. A `get_unchecked` in the sweep or the meat
+# accumulation would buy a few percent and cost the ability to trust the numbers.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

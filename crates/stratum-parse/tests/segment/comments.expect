@@ -1,0 +1,12 @@
+1..2	Simple                	cr       	canonical=sysuse
+3..3	Trivia                	cr       
+4..5	Simple                	cr       	canonical=display
+6..6	Simple                	cr       	canonical=display
+7..7	Trivia                	cr       
+8..9	Simple                	cr       	canonical=local
+10..10	Simple                	cr       	canonical=display
+11..11	Trivia                	cr       
+12..14	Simple                	cr       	canonical=display
+15..15	Trivia                	cr       
+16..17	Simple                	cr       	canonical=local
+18..18	Simple                	cr       	canonical=display

@@ -1,0 +1,106 @@
+# The execution engine — ARCHITECTURE §5, design 03, ADR-008, ADR-017.
+#
+# "`ExecutionEngine` (queue, dispatch, cancel), the staleness sweep C0–C9,
+# `DepIndex`, `RunIntent`→`RunPlan`, `ExecutionLedger`, `ResultStore`,
+# `EngineEvent` emission, `SessionIntrospect` impl, `session.redb`."
+#
+# THE DEPENDENCY LIST, AND WHAT IS DELIBERATELY MISSING.
+#
+# ARCHITECTURE §5 gives this crate `session, runtime` as its `May depend on`.
+# Neither `stratum-session` (W08b) nor `stratum-runtime` (W06, a 20-day unit)
+# exists in the tree yet, so those two edges are not here. What this crate needs
+# from below is expressed as ports over FROZEN proto types instead — see the
+# "Ports" section of `src/lib.rs`. When those crates land, W08b implements
+# `SessionHost` and projects its `DepFootprint`/`WriteFootprint`/`VersionTable`
+# into `RecordedReads`/`RecordedWrites`/`Versions`; nothing here changes.
+#
+#   stratum-proto    every id, `BlockStatus`, `StaleReason`, `DepKey`,
+#                    `ExecutionRecord`, `RunIntent`/`RunPlan`, `EngineEvent`,
+#                    `BlockMap`, and the `SessionIntrospect` trait this crate
+#                    implements (A5). Declared THERE and nowhere else (A10).
+#   stratum-effects  `EffectSet`/`VarSet::may_intersect` — the may-side of the
+#                    C7 test. The trait's `EffectTable` rows come from runtime
+#                    and stats; this crate only consumes what they produce.
+#   stratum-parse    `segment` — `RunIntent::Selection` must refuse a fragment
+#                    that is not whole statements, and that is a scanner
+#                    question. Also the one place a `code_hash` is recomputed.
+#   crossbeam-channel  the run queue and the event bus: `select!` over the
+#                    control thread's sources, bounded + `try_send` so a paused
+#                    UI never throttles the engine (03 §9.4).
+#   parking_lot      the `ResultStore` index and the snapshot cells. No
+#                    poisoning, and a swap-only critical section is what makes
+#                    C50 (control thread never blocks on the worker) hold.
+#   redb + rmp-serde `engine/session.redb` (ADR-009, A4). NOT `ui/ui.redb`:
+#                    two files, one writer each.
+#   rustc-hash       the dep index; its iteration order never reaches output.
+#   indexmap         anywhere iteration order CAN reach output (03 §9.3).
+#
+# NOT taken, against 03 §1.1: `imbl` (the fingerprint maps live in
+# `stratum-runtime`; this crate compares projections, not HAMTs), `postcard`
+# (the workspace pins `rmp-serde` for exactly this job), `roaring` (03 §1.1
+# reserves it for >5k-block dep indexes; `SmallVec<[u32;4]>` is what v1 needs),
+# `notify` (the file watcher belongs to whoever owns the session's file table),
+# and `compact_str` (names here are `String`s that came off the wire).
+
+[package]
+name = "stratum-exec"
+description = "Stratum's execution engine: run queue, ledger, event stream, and the engine-authoritative staleness sweep."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+default = ["verify-staleness"]
+# ADR-008 / 03 §6.5: run the full O(n²) sweep alongside the incremental
+# `DepIndex` path and panic on divergence. Default ON so `cargo test` and every
+# debug build carry it; a release engine turns it off with
+# `--no-default-features`.
+verify-staleness = []
+# Fixtures shared by this crate's own tests and by downstream units' tests.
+# Never on in a shipped build.
+testkit = []
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-effects = { path = "../stratum-effects" }
+stratum-parse = { path = "../stratum-parse" }
+camino = { workspace = true }
+crossbeam-channel = { workspace = true }
+indexmap = { workspace = true }
+parking_lot = { workspace = true }
+redb = { workspace = true }
+rmp-serde = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+smallvec = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+stratum-exec = { path = ".", features = ["testkit"] }
+criterion = { workspace = true }
+pretty_assertions = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+# A `[[bench]]` naming a file that does not exist makes cargo hard-error while
+# PARSING the manifest, which breaks `cargo metadata` and therefore every cargo
+# command in the workspace — several units lost 25 to 90 minutes to exactly that.
+# The declaration and `benches/staleness.rs` land together or not at all.
+#
+# `harness = false`: criterion supplies its own `main`. Under ADR-017 the bench
+# is a RECORDED duration and never a gate, so nothing depends on it running.
+[[bench]]
+name = "staleness"
+harness = false

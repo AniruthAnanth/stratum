@@ -1,0 +1,3 @@
+#!/bin/bash
+# zig-as-cross-ar shim (W22). See x86_64-linux-gnu-gcc in this directory.
+exec zig ar "$@"

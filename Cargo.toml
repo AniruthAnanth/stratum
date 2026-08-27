@@ -1,0 +1,313 @@
+# Stratum workspace root.
+#
+# Members are declared as a GLOB on purpose. R0 gives every work unit exactly
+# one owner per file, and this file's owner is W00 — so if members were an
+# explicit list, W01..W26 could not register their own crates without editing a
+# file they do not own. `crates/*` makes registration a side-effect of creating
+# the crate, which is what keeps R0 enforceable.
+#
+# `apps/desktop/src-tauri` is deliberately NOT listed yet. Cargo 1.96 treats a
+# members pattern that matches nothing as a literal path and hard-errors, so a
+# forward-declared `apps/*/src-tauri` would break `cargo metadata` for every unit
+# until W17 creates that crate. W17 adds the entry when it lands.
+#
+# Layout, profiles and the dependency table follow docs/design/08-platform-
+# packaging-ci.md §§1, 2.1, 10.1; the crate roster is ARCHITECTURE.md §5.
+
+[workspace]
+resolver = "2"
+members = [
+  "crates/*",
+  # Added by the architect when W07 landed: W07 owns three modules under
+  # this directory but owns no manifest anywhere in the tree, so without
+  # this line its transport, supervisor and mock engine are compiled by
+  # nothing. Deliberately NOT a default member — a bare `cargo build` at
+  # the root must not start compiling tauri. `--workspace`, which CI runs,
+  # still covers it.
+  "apps/desktop/src-tauri",
+  "xtask",
+]
+
+# THE STRUCTURAL GUARANTEE FOR SPEC §32 / ARCHITECTURE §8.6: a bare
+# `cargo build`/`test`/`clippy` at the repo root never compiles the build
+# tooling, and never compiles anything that can talk to Stata.
+#
+# THE GLOB IS GONE, AND HAD TO GO. `default-members = ["crates/*"]` held only
+# while every crate under `crates/` belonged in the default build. W25 landed
+# `crates/stratum-e2e`, which ARCHITECTURE §5 lists as excluded, and cargo's
+# member patterns have no negation — there is no way to say "crates/* except
+# these three". The standing NOTE FOR W23/W25 that used to sit here said this key
+# "has to become an enumeration" when either crate was created. It has been.
+#
+# EXCLUDED, and why each one:
+#
+#   xtask                       build tooling; ARCHITECTURE §5, §8.6
+#   apps/desktop/src-tauri      a bare `cargo build` must not start compiling
+#                               tauri (see the members note above)
+#   crates/stratum-e2e          ARCHITECTURE §5 — the e2e harness drives the
+#                               packaged app; §32's machine-checked form
+#   crates/stratum-difftest     ARCHITECTURE §5 / spec §32 — the ONLY crate that
+#                               can talk to Stata. Not created yet; listed here
+#                               so the intent survives its arrival.
+#   crates/stratum-wasm         ARCHITECTURE §5 — "not a default member; built
+#                               by `xtask wasm`", which is the only build of it
+#                               that produces a usable artifact.
+#
+# WHAT THIS COSTS, AND WHAT PAYS IT. The glob existed so a unit could register
+# its crate without editing a file it does not own (R0, see the header). Members
+# is still a glob, so registration still works that way; only the default build
+# is enumerated. The residual hazard is drift in the other direction — a new
+# crate lands, nobody adds it here, and a bare `cargo build` silently stops
+# compiling it. `cargo xtask layering` now asserts BOTH directions of this list
+# against `cargo metadata`, so that omission is a red check naming the exact line
+# to add, not a silence. A unit that hits it is meant to escalate, exactly as the
+# old note said: this edit belongs to whoever owns this file at the time.
+#
+# AND IT DID DRIFT, IMMEDIATELY. The first `cargo xtask layering` run after the
+# enumeration replaced the glob named TEN crates that had landed during wave 1
+# and 2 without a line here — dta, stats, graph, runtime, session, exec, intel,
+# ai and the two non-macOS platform impls. None was noticed at the time, because
+# CI runs `--workspace`: the loss is invisible to the gate and shows up only as a
+# developer whose bare `cargo build` is green while their crate does not compile.
+# That is precisely the failure mode pass 3 was written for, and it is why this
+# list is maintained by whoever owns this file rather than left to the glob.
+default-members = [
+  # L0–L1: the engine, in dependency order (ARCHITECTURE §5).
+  "crates/stratum-proto",
+  "crates/stratum-core",
+  "crates/stratum-data",
+  "crates/stratum-dta",
+  "crates/stratum-parse",
+  "crates/stratum-effects",
+  "crates/stratum-tokens",
+  "crates/stratum-stats",
+  "crates/stratum-graph",
+  # L2: the session tier, deterministic intelligence, and AI.
+  "crates/stratum-runtime",
+  "crates/stratum-session",
+  "crates/stratum-exec",
+  "crates/stratum-intel",
+  "crates/stratum-ai",
+  # L2: workspace model and the platform adapter layer. All three OS impls are
+  # here, not just the host's. That is safe — and required — because none of
+  # them is `#![cfg(target_os = ...)]` at the crate level: each keeps its policy
+  # code (accelerator resolution, `/proc` and cgroup parsing, the Credential
+  # Manager target-name grammar, the encrypted-file store) target-independent and
+  # `cfg`-gates only the modules that issue a syscall, with the OS-specific
+  # dependencies declared under `[target.'cfg(target_os = ...)'.dependencies]`.
+  # So a bare `cargo build` on macOS compiles the Windows and Linux policy code
+  # and runs its tests, which is the only way W24's acceptance is evidenced from
+  # a machine that cannot boot either OS. Leaving them out would have handed
+  # `stratum-platform-host`'s cfg-selection the job of deciding what gets
+  # compiled at all, and that is exactly the drift this enumeration exists to
+  # stop: on macOS nothing would ever have compiled them.
+  "crates/stratum-workspace",
+  "crates/stratum-platform",
+  "crates/stratum-platform-macos",
+  "crates/stratum-platform-windows",
+  "crates/stratum-platform-linux",
+  "crates/stratum-platform-host",
+  # L3: the headless binary. `stratum-desktop` is deliberately absent, above.
+  "crates/stratum-cli",
+  # Feature unification (hakari). Must be a default member or the unified
+  # feature set is not what a bare build resolves.
+  "crates/stratum-workspace-hack",
+]
+
+[workspace.package]
+version      = "0.1.0"
+edition      = "2021"
+rust-version = "1.96"
+license      = "AGPL-3.0-or-later OR LicenseRef-Stratum-Commercial"
+repository   = "https://github.com/stratum-stats/stratum"
+authors      = ["The Stratum authors"]
+
+# ---------------------------------------------------------------------------
+# Shared dependencies. A member crate takes `foo = { workspace = true }` so the
+# workspace resolves one version and one feature set per dependency; that is
+# what makes `cargo hakari` able to unify features across the graph at all.
+#
+# Feature sets here are the UNION the workspace needs. A crate that must stay
+# leaner (proto, parse, effects, intel — the wasm-clean set, ARCHITECTURE §8.4)
+# adds `default-features = false` at its own use site.
+# ---------------------------------------------------------------------------
+[workspace.dependencies]
+
+# --- stratum-proto's entire permitted surface (CONTRACTS.md preamble) --------
+# `time` is deliberately NOT here as a proto dependency; see the `time` entry at
+# the bottom of this table.
+serde     = { version = "1", features = ["derive"] }
+camino    = { version = "1", features = ["serde1"] }
+thiserror = "2"
+bitflags  = { version = "2", features = ["serde"] }
+# Default-OFF everywhere. Pinned to an exact prerelease because specta 2 has no
+# stable release and `specta-typescript`/`tauri-specta` pin it with `=`.
+specta = { version = "2.0.0-rc.22", default-features = false, features = ["derive"] }
+
+# --- serialisation ----------------------------------------------------------
+# `float_roundtrip` is mandatory (08 §2.1): without it serde_json drops the last
+# ulp on parse and the numeric tolerance machinery in 08 §9.5 is meaningless.
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+# The desktop transport (ADR-006). Field-name encoding via `to_vec_named`.
+rmp-serde = "1"
+toml      = "0.8"
+toml_edit = "0.22"
+ron       = "0.12"
+
+# --- errors, logging, CLI ---------------------------------------------------
+anyhow             = "1"
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+clap               = { version = "4", features = ["derive", "env", "wrap_help"] }
+clap_complete      = "4"
+
+# --- hashing and numerics ---------------------------------------------------
+# blake3-128 backs CodeHash / TextHash / ColumnDigest. Not a security boundary.
+blake3 = "1"
+# The ONLY transcendentals in the engine (ADR-004): stratum_core::math wraps it.
+libm = "0.2"
+# Map phase only; the fold is sequential by chunk index (ADR-013).
+rayon = "1"
+
+# --- collections and text ---------------------------------------------------
+indexmap             = { version = "2", features = ["serde"] }
+smallvec             = { version = "1", features = ["serde", "union"] }
+rustc-hash           = "2"
+bstr                 = "1"
+regex                = "1"
+unicode-width        = "0.2"
+unicode-segmentation = "1"
+# .dta codepage translation (04 §9).
+encoding_rs = "0.8"
+# Myers diff behind `capture_diff_slices`, the normative reconcile in
+# CONTRACTS.md §2.
+similar = "3"
+# Narrative rendering with HTML disabled at compile time (ARCHITECTURE C13).
+pulldown-cmark = { version = "0.13", default-features = false }
+
+# --- storage and I/O --------------------------------------------------------
+memmap2 = "0.9"
+# ADR-009 / C18. Two files, one writer each (A4).
+redb        = "4"
+directories = "5"
+tempfile    = "3"
+# Never `features = ["full"]` (08 §10.5).
+tokio = { version = "1", features = [
+  "rt-multi-thread",
+  "macros",
+  "io-util",
+  "process",
+  "sync",
+  "time",
+] }
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+
+# --- platform layer (only stratum-platform-* may take these; deny.toml bans
+#     them elsewhere by `wrappers`) ------------------------------------------
+rfd     = "0.17"
+aes-gcm = "0.11"
+argon2  = "0.5"
+
+# --- AI (stratum-ai only; ARCHITECTURE §8.1 bans reqwest below the binaries) --
+reqwest = { version = "0.13", default-features = false, features = [
+  "json",
+  "rustls",
+  "webpki-roots",
+  "stream",
+  "http2",
+] }
+
+# --- desktop ----------------------------------------------------------------
+tauri             = "2"
+tauri-build       = "2"
+tauri-specta      = { version = "2.0.0-rc.21", features = ["derive", "typescript"] }
+specta-typescript = "0.0.9"
+# Set as #[global_allocator] in exactly two binaries, never in a library.
+mimalloc = { version = "0.1", default-features = false }
+
+# --- wasm (stratum-wasm; not a default member) ------------------------------
+wasm-bindgen             = "0.2"
+serde-wasm-bindgen       = "0.6"
+console_error_panic_hook = "0.1"
+
+# --- build tooling (xtask) --------------------------------------------------
+cargo_metadata = "0.23"
+xshell         = "0.2"
+glob           = "0.3"
+
+# --- test-only --------------------------------------------------------------
+proptest          = "1"
+insta             = { version = "1", features = ["json", "redactions"] }
+criterion         = { version = "0.8", features = ["html_reports"] }
+pretty_assertions = "1"
+assert_cmd        = "2"
+predicates        = "3"
+wasm-bindgen-test = "0.3"
+
+# --- deliberately last ------------------------------------------------------
+# AUDIT FINDING A2. `time` must never be a default dependency of stratum-proto,
+# stratum-core, stratum-parse, stratum-effects or stratum-intel: they build for
+# wasm32-unknown-unknown under ARCHITECTURE §8.4 and `time` drags a locale/tz
+# surface that invariant forbids. Every timestamp on the wire is `u64` ms since
+# the Unix epoch (`UnixMs`). Only L3+ crates — stratum-cli, stratum-desktop —
+# may take this, and only to RENDER a `UnixMs` for a human.
+time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
+
+# ---------------------------------------------------------------------------
+# Profiles — docs/design/08-platform-packaging-ci.md §10.1, transcribed.
+# ---------------------------------------------------------------------------
+
+[profile.release]
+opt-level     = 3
+lto           = "fat"
+codegen-units = 1
+# DELIBERATE. The runtime wraps every command in `catch_unwind` so a panic in one
+# estimation surfaces as Failed with an internal-error diagnostic while the
+# user's in-memory dataset, macros and estimates survive. `panic = "abort"` is
+# used ONLY for standalone CLI archives, via
+# `--config 'profile.release.panic="abort"'` on the command line.
+panic           = "unwind"
+strip           = "none"
+debug           = "line-tables-only"
+incremental     = false
+overflow-checks = false
+
+# Dev-facing "fast release": benchmarking and manual QA without the fat-LTO link.
+[profile.release-fast]
+inherits      = "release"
+lto           = "thin"
+codegen-units = 16
+debug         = 0
+
+[profile.dev]
+opt-level = 0
+debug     = "line-tables-only" # full DWARF doubles link time and we
+# only ever need file:line in backtraces
+split-debuginfo = "unpacked" # macOS: skips dsymutil entirely
+incremental     = true
+overflow-checks = true       # catches integer bugs in index math
+
+# Optimize dependencies even in dev; otherwise a debug-mode regress on a 1M-row
+# dataset takes minutes.
+[profile.dev.package."*"]
+opt-level = 2
+debug     = false
+
+# 08 §10.1 also specifies `opt-level = 2` in dev for our own numeric kernels:
+#
+#   [profile.dev.package.stratum-stats]
+#   [profile.dev.package.stratum-dta]
+#
+# Both are omitted until those crates exist. Cargo prints
+# "profile package spec ... did not match any packages" on EVERY command for an
+# unmatched spec, and weeks of that warning trains people to ignore cargo's
+# output. W05 and W03 restore them.
+
+[profile.test]
+inherits = "dev"
+
+[profile.bench]
+inherits = "release"
+lto      = "thin"             # fat LTO makes criterion iteration unbearable
+debug    = "line-tables-only"

@@ -1,0 +1,49 @@
+# The only sanctioned `.do` writer (ADR-010, ARCHITECTURE §6.3 / §5, W26).
+#
+# The dependency list is short on purpose. ARCHITECTURE C24 puts this crate on
+# the DESKTOP side of the process boundary — `stratum-desktop` links it and links
+# none of core/data/dta/parse/stats/runtime/exec — so anything added here is
+# linked into the UI process. `stratum-proto` is the wire contract; `blake3` is
+# the one hash the product has (CodeHash/TextHash are blake3-128, C19's cache
+# directory is keyed by blake3 of the absolute path); everything else here is
+# serde plus the filesystem.
+#
+# NOT here, deliberately:
+#   * `time` — the byte-fidelity policy and both sidecars are timestamp-free by
+#     construction (C19: "no timestamps"), so there is nothing to format.
+#   * `tokio` — every entry point in this crate is synchronous. The Tauri command
+#     layer (W07) is what makes them async.
+#   * `stratum-intel` — W20 owns the two equivalence proofs and has not landed.
+#     `write::EditGate` is the seam it plugs into; see that module's header.
+
+[package]
+name = "stratum-workspace"
+description = "Project model, document buffers, both sidecars, and the four gated .do writers."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+camino = { workspace = true }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+proptest = { workspace = true }
+
+[lints.rust]
+# A crate whose entire job is "do not corrupt the user's source file" has no
+# business containing an unsafe block.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

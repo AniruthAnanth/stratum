@@ -1,0 +1,93 @@
+/* summarize — 06 §6.3.
+ *
+ * The table itself is `.stat-table` from `styles/tables.css` (W12): one set of
+ * booktabs rule weights for every result surface in the product, so an inline
+ * card, the scrollback, the comparison view and exported LaTeX read as one
+ * system (06 §14.8 rule 1). Nothing below re-declares a rule.
+ */
+
+.summarize__table {
+  width: max-content;
+}
+
+/* The variable name is a real button so it is reachable by keyboard, and it is
+   styled as text so the table still reads as a table (06 §14.4: no chrome). */
+.summarize__var {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: var(--radius-none);
+  color: var(--text-body);
+  font: inherit;
+  cursor: default;
+}
+
+.summarize__var:hover {
+  border-bottom-color: var(--border-strong);
+}
+
+/* 06 §6.3: the variable label sits under the name in meta ink, and only when
+   there is room for it. A container query rather than a viewport query — the
+   card lives in a pane whose width has nothing to do with the window's. */
+.summarize {
+  container-type: inline-size;
+}
+
+.summarize__label {
+  display: none;
+  color: var(--text-meta);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+}
+
+@container (min-width: 560px) {
+  .summarize__label {
+    display: block;
+  }
+}
+
+/* Rows where `missing > 0` show the count in amber (06 §6.3). */
+.summarize__missing {
+  color: var(--state-stale);
+  font-size: var(--fs-micro);
+}
+
+.summarize__spark-head {
+  width: 60px;
+}
+
+.summarize__spark {
+  color: var(--n6);
+  padding-left: var(--sp-12);
+}
+
+.summarize__detail {
+  margin-top: var(--sp-12);
+}
+
+.summarize__detail-title {
+  margin: 0 0 var(--sp-4) 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+
+.summarize__detail-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-24);
+  align-items: flex-start;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

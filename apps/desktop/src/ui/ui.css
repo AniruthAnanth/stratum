@@ -1,0 +1,248 @@
+/* Control styles - 06 §14.4. Radius 3px, one hairline, no shadow, no gradient.
+ * Imported once by `ui/index.ts` so a consumer gets the components and their
+ * appearance together and cannot get one without the other.
+ */
+
+.icon,
+.state-glyph {
+  flex: 0 0 auto;
+  display: block;
+  width: var(--icon-grid);
+  height: var(--icon-grid);
+}
+
+/* ---- Button ------------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 24px;
+  padding: 0 var(--sp-8);
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  white-space: nowrap;
+  cursor: default;
+  transition: background var(--motion-state) var(--motion-state-easing), color var(--motion-state)
+    var(--motion-state-easing);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--input);
+}
+.btn:disabled {
+  color: var(--text-disabled);
+}
+
+.btn--default {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.btn--default:hover:not(:disabled) {
+  background: var(--input);
+}
+
+.btn--accent {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--n0);
+}
+.btn--accent:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn__accel {
+  margin-left: var(--sp-4);
+  color: var(--text-meta);
+}
+
+/* ---- Chip -------------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 18px;
+  padding: 0 var(--sp-6);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-control);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  color: var(--text-label);
+  /* 06 §14.2: no pastel pill badges. A chip is a hairline box with ink in it;
+     the tone colours the INK and the border, never a fill. */
+}
+
+.chip--ok {
+  color: var(--state-ok);
+  border-color: var(--state-ok);
+}
+.chip--stale {
+  color: var(--state-stale);
+  border-color: var(--state-stale);
+}
+.chip--failed {
+  color: var(--state-failed);
+  border-color: var(--state-failed);
+}
+.chip--accent {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---- Field ------------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.field__box {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 24px;
+  padding: 0 var(--sp-6);
+  background: var(--input);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.field__box:focus-within {
+  border-color: var(--accent);
+}
+
+/* The Stata prompt, quoted directly: a `.` in meta ink (06 §10). */
+.field__prompt {
+  font-family: var(--font-mono);
+  color: var(--text-meta);
+  user-select: none;
+}
+
+.field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+
+/* ---- Segmented --------------------------------------------------------- */
+
+.segmented {
+  display: inline-flex;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.segmented__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 22px;
+  padding: 0 var(--sp-8);
+  border: 0;
+  border-right: var(--hairline) solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text-label);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  cursor: default;
+}
+
+.segmented__item:last-child {
+  border-right: 0;
+}
+.segmented__item[data-selected] {
+  background: var(--canvas);
+  color: var(--text-heading);
+}
+
+/* ---- Rule -------------------------------------------------------------- */
+
+.rule {
+  /* `hr` is the semantic separator, so its UA border and margin come off here
+     rather than a div being dressed up with role="separator". */
+  border: 0;
+  margin: 0;
+  background: var(--border);
+  height: var(--hairline);
+  width: 100%;
+}
+.rule--mid {
+  background: var(--rule-mid);
+}
+.rule--edge {
+  background: var(--rule-edge);
+}
+.rule[data-vertical] {
+  width: var(--hairline);
+  height: 100%;
+}
+
+/* ---- Sparkline --------------------------------------------------------- */
+
+.sparkline {
+  color: var(--text-label);
+  display: block;
+}
+
+/* ---- Overlays ---------------------------------------------------------- */
+
+.popover {
+  position: fixed;
+  z-index: 100;
+  min-width: 180px;
+  padding: var(--sp-4);
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  outline: none;
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 22px;
+  padding: 0 var(--sp-8);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-body);
+  text-align: left;
+  cursor: default;
+}
+
+.menu__item[data-active]:not(:disabled) {
+  background: var(--accent-subtle);
+}
+.menu__item:disabled {
+  color: var(--text-disabled);
+}
+.menu__label {
+  flex: 1 1 auto;
+}
+.menu__accel {
+  color: var(--text-meta);
+}
+.menu__separator {
+  border: 0;
+  height: var(--hairline);
+  margin: var(--sp-4) 0;
+  background: var(--border);
+}

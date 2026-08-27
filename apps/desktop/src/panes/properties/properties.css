@@ -1,0 +1,187 @@
+/* Properties — 06 §9.5, §14.4, §14.5.
+ *
+ * A definition list in two sections, not a form: nine of the fourteen rows are
+ * facts about the dataset and only five are editable, and a page of input boxes
+ * where most of them are disabled reads as broken rather than as locked.
+ *
+ * The inputs are borderless until hovered or focused, which is what makes the
+ * pane look like a readout while the padlock is on and like a form the moment it
+ * comes off — one control, two states, no second layout.
+ */
+
+.props {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.props__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.props__step,
+.props__lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: none;
+  background: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--text-meta);
+  font-size: 9px;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+}
+
+.props__step:hover:not(:disabled),
+.props__lock:hover {
+  color: var(--text-body);
+  background: var(--surface);
+}
+
+.props__step:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.props__step:focus-visible,
+.props__lock:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Unlocked is the state that permits a command to be issued, so it is the state
+   that is marked. Locked is quiet because locked is the default. */
+.props__lock:not([data-locked]) {
+  color: var(--accent);
+}
+
+.props__lock-glyph {
+  display: block;
+}
+
+.props__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: var(--sp-8);
+}
+
+.props__section {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0 var(--sp-8);
+  height: var(--h-pane-header);
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border-bottom: var(--hairline) solid var(--border);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: var(--fw-medium);
+  color: var(--text-label);
+}
+
+.props__list {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.8fr) minmax(96px, 1.6fr);
+  align-items: baseline;
+  gap: 0;
+  margin: 0;
+  padding: var(--sp-4) 0;
+}
+
+.props__key {
+  padding: var(--sp-2) var(--sp-8);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  color: var(--text-label);
+}
+
+.props__val {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-8) var(--sp-2) 0;
+  min-width: 0;
+}
+
+.props__val--static {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.props__input {
+  width: 100%;
+  min-width: 0;
+  appearance: none;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  padding: 1px var(--sp-4);
+}
+
+.props__input:hover:not(:disabled) {
+  border-color: var(--border);
+}
+
+.props__input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--input);
+}
+
+.props__input:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.props__notes {
+  margin: 0 0 var(--sp-2);
+  padding-inline-start: var(--sp-16);
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  color: var(--text-secondary);
+}
+
+.props__empty {
+  margin: 0;
+  padding: var(--sp-12) var(--sp-8);
+  color: var(--text-meta);
+  font-size: var(--fs-small);
+}
+
+/* A refusal is a sentence, not a shake: the user has to be able to read why the
+   edit did not become a command, and colour is never the only channel (06 §17). */
+.props__refusal {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+  margin: 0;
+  padding: var(--sp-4) var(--sp-8);
+  border-top: var(--hairline) solid var(--border);
+  background: var(--surface);
+  color: var(--state-failed);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+}

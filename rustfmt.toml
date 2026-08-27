@@ -1,0 +1,19 @@
+# 08 §1: "edition 2021, max_width 100".
+#
+# Only stable options. An unstable key here would make `cargo fmt --check` — a
+# required PR check (08 §8.2) — fail on the pinned stable toolchain.
+edition = "2021"
+max_width = 100
+use_small_heuristics = "Default"
+newline_style = "Unix"
+tab_spaces = 4
+hard_tabs = false
+reorder_imports = true
+reorder_modules = true
+merge_derives = true
+use_field_init_shorthand = true
+use_try_shorthand = true
+force_explicit_abi = true
+remove_nested_parens = true
+match_block_trailing_comma = false
+fn_params_layout = "Tall"

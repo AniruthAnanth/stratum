@@ -1,0 +1,6 @@
+1..3	EndBlock/Program      	cr       	name=myprog	canonical=program
+4..4	Simple                	cr       	canonical=program
+5..8	EndBlock/Input        	cr       	canonical=input
+9..11	EndBlock/Mata         	cr       	canonical=mata
+12..12	Simple                	cr       	canonical=mata
+13..13	Simple                	cr       	canonical=program

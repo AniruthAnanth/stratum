@@ -1,0 +1,248 @@
+/* Variables — 06 §9.4, §14.4, §14.5.
+ *
+ * A CSS grid rather than a table: the paste column is a 14 px gutter that has to
+ * line up with the rows through a virtualised window, and a `<table>` with a
+ * translated `<tbody>` is a layout the engines disagree about.
+ *
+ * Row height is `--h-grid-row`, the same 22 px the History pane and the Data
+ * Editor use, because these three lists sit beside each other in Classic and a
+ * different rhythm in one of them is the thing that reads as three apps in a
+ * trench coat (§39).
+ */
+
+.vars {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.vars__grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vars__head {
+  display: grid;
+  grid-template-columns: var(--vars-tracks);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: var(--h-pane-header);
+  background: var(--surface);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+/* The `columnheader` cell. It carries `aria-sort` and the grid track; the
+   button inside it carries the action, because a control that announces itself
+   as a column header and not as a button is a control nobody presses. */
+.vars__head-cell {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vars__head-cell--paste {
+  cursor: default;
+}
+
+.vars__head-button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0 var(--sp-8);
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: var(--fw-medium);
+  color: var(--text-label);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.vars__head-button:hover {
+  color: var(--text-body);
+}
+
+.vars__head-button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* The sort marker keeps its box whether or not there is a glyph in it, so a
+   third click does not shift the header text sideways. */
+.vars__sort {
+  display: inline-block;
+  min-width: 8px;
+  font-size: 8px;
+  color: var(--accent);
+}
+
+.vars__scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.vars__spacer {
+  position: relative;
+}
+
+.vars__window {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.vars__row {
+  display: grid;
+  grid-template-columns: var(--vars-tracks);
+  height: var(--h-grid-row);
+  align-items: center;
+  cursor: default;
+}
+
+.vars__row:hover {
+  background: var(--surface);
+}
+
+/* The roving tab stop. Inset so the ring sits inside the 22 px row rather than
+   painting over its neighbours. */
+.vars__row:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.vars__row[data-selected] {
+  background: var(--accent-subtle);
+}
+
+/* "To the left of each variable is a small area that, when clicked, will paste
+   the variable into the Command window" ([GSM] 2). Invisible until the pointer
+   is on the row: 06 §9.4 calls it tiny and cheap, and a column of arrows
+   permanently on screen is neither. */
+.vars__paste {
+  appearance: none;
+  border: none;
+  background: none;
+  width: 14px;
+  height: var(--h-grid-row);
+  padding: 0;
+  color: var(--text-meta);
+  font-size: 10px;
+  line-height: var(--h-grid-row);
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.vars__row:hover .vars__paste,
+.vars__row:focus-visible .vars__paste,
+.vars__paste:focus-visible {
+  opacity: 1;
+}
+
+.vars__paste:hover {
+  color: var(--accent);
+}
+
+.vars__cell {
+  padding: 0 var(--sp-8);
+  font-size: var(--fs-small);
+  line-height: var(--h-grid-row);
+  color: var(--text-body);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Names are code — they are typed into commands — so they are set in the mono
+   face. Labels are prose and are not. */
+.vars__cell--name {
+  font-family: var(--font-mono);
+}
+
+.vars__cell--label,
+.vars__cell--valueLabel {
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+}
+
+.vars__cell--type,
+.vars__cell--format {
+  font-family: var(--font-mono);
+  color: var(--text-meta);
+}
+
+.vars__empty {
+  margin: 0;
+  padding: var(--sp-12) var(--sp-8);
+  color: var(--text-meta);
+  font-size: var(--fs-small);
+}
+
+.vars__filter {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+  height: var(--h-toolbar);
+  padding: 0 var(--sp-8);
+  border-top: var(--hairline) solid var(--border);
+  background: var(--surface);
+}
+
+.vars__magnifier {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: var(--sp-2);
+  color: var(--text-meta);
+  cursor: pointer;
+  border-radius: var(--radius-control);
+}
+
+.vars__magnifier:hover {
+  color: var(--text-body);
+}
+
+.vars__magnifier:focus-visible {
+  outline: 1px solid var(--accent);
+}
+
+.vars__query {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--input);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  padding: var(--sp-2) var(--sp-6);
+}
+
+.vars__query:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}

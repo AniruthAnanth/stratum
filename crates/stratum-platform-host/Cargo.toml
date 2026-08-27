@@ -1,0 +1,49 @@
+# `host() -> &'static dyn Platform`, cfg-selected (08 §5.1, ARCHITECTURE §5).
+#
+# Only the macOS arm exists. `crates/stratum-platform-{windows,linux}` belong to
+# W24 "from day one, including the initial stubs" (A33), so W10 cannot create
+# them, and cargo cannot parse a path dependency on a directory that is not
+# there — not even a `cfg(target_os = "windows")` one, because `cargo metadata`
+# resolves every target. The two missing arms are therefore a `compile_error!`
+# in src/lib.rs with the exact three lines W24 adds, rather than a stub that
+# would let W22 package an app whose credential store does not exist.
+
+[package]
+name = "stratum-platform-host"
+description = "Selects the platform implementation for the target OS."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-platform = { path = "../stratum-platform" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+stratum-platform-macos = { path = "../stratum-platform-macos" }
+
+# W24's two crates landed, so the NOTE FOR W24 that stood here is now these two
+# blocks and the matching arms in src/lib.rs. Applied by the workspace fix agent
+# in repair round 1, not by W10 — `cargo check` for both release triples was red
+# on the `compile_error!` those arms replace, and both files are W10's under R0,
+# so the crossing is recorded in that agent's return.
+#
+# One dependency per target rather than three unconditional ones: `cargo
+# metadata` resolves every target's dependency table, but only the selected
+# target's is *built*, so a Linux CI runner never compiles the Windows crate's
+# `windows-sys` tree.
+[target.'cfg(target_os = "windows")'.dependencies]
+stratum-platform-windows = { path = "../stratum-platform-windows" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+stratum-platform-linux = { path = "../stratum-platform-linux" }
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

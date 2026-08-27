@@ -1,0 +1,97 @@
+# Expression conformance corpus — design 02 §8, every verified row.
+#
+# One `expression => answer` per line; `#` starts a comment. Every answer is the
+# text StataMP 18.5 printed, compared after `%18.0g`-and-trim (the same rule
+# `local x = exp` uses, 02 §4.4), so `.3333333333333333` below is literally what
+# Stata puts in a macro.
+#
+# Loaded by `crates/stratum-parse/tests/expr.rs` via `include_str!`, which makes
+# a missing or renamed file a COMPILE error rather than a silently empty corpus.
+#
+# Why this file is under `data/` and not `tests/expr/`: see the header of
+# tests/expr.rs. `docs/ownership.toml` grants W04b `crates/stratum-parse/data/**`
+# as a glob but `crates/stratum-parse/tests/expr.rs` as an exact path, so
+# `tests/expr/precedence.txt` would be a tracked file owned by nobody, which R0
+# makes fatal.
+
+# ── 02 §8.1, level by level ────────────────────────────────────────────────
+# 90: `^` is binary and LEFT-associative. 512 would be right-assoc.
+2^3^2                       => 64
+# 85: `!` is tighter than `/`, `+` and `==`, and LOOSER than `^`.
+!0/2                        => .5
+!0+1                        => 2
+!2==1                       => 0
+!2^0                        => 0
+# 80: unary `-` is LOOSER than `^` and tighter than everything below.
+-2^2                        => -4
+-2^-2                       => -.25
+# 70 vs 65: `/` binds tighter than `*`. Left-to-right would overflow to `.`,
+# so the answer being 1e300 at all IS the evidence. Asserted as an equality so
+# the row tests precedence and not `%g`'s rendering of a 300-magnitude number.
+1e300*1e300/1e300 == 1e300  => 1
+1e300*1e300/1e300 == .      => 0
+# 60 vs 55: binary `-` binds tighter than `+`. Same reasoning: `1e-20` survives
+# only if the subtraction happened first.
+(1e-20 + 1 - 1) == 1e-20    => 1
+1 + 1e-20 - 1               => 0
+# 50: `!=` is tighter than `==`.
+1 == 2 != 0                 => 1
+# 45 vs 40: `>` is tighter than `<`.
+0 > 1 < 1                   => 1
+0 != 1 > 1                  => 0
+# 25: `==` is looser than every other relational.
+1 == 2 > 0                  => 1
+# 20 vs 15: `&` binds tighter than `|`.
+0 | 1 & 0                   => 0
+1 | 1 & 0                   => 1
+# Parentheses still win.
+(2^3)^2                     => 64
+2^(3^2)                     => 512
+# ── 02 §8.2, the two types ─────────────────────────────────────────────────
+"this"*3                     => thisthisthis
+"ab" + "cd"                  => abcd
+"cat" > "Zebra"              => 1
+"a" < "B"                    => 0
+# Logical operators treat ANY nonzero, missing included, as true.
+5 & .                       => 1
+1 & .                       => 1
+!.                          => 0
+# ── 02 §8.3, the missing-value model ───────────────────────────────────────
+# Ordering is free: plain IEEE `<` already puts every missing above every number.
+. < .a                      => 1
+.a < .b                     => 1
+.z > 1e300                  => 1
+. > 1e300                   => 1
+# Comparisons never produce missing.
+2 == .                      => 0
+. == .                      => 1
+.a == .a                    => 1
+# Arithmetic collapses extended missings to `.`.
+.a + 1                      => .
+1 + .                       => .
+1 * .                       => .
+./.                         => .
+# Division by zero and overflow are `.`, not inf.
+1/0                         => .
+-1/0                        => .
+0/0                         => .
+1e300*1e300                 => .
+# ── tests/golden/stata18/semantics.log, verbatim ───────────────────────────
+max(1, .)                   => 1
+min(1, .)                   => 1
+cond(1 > ., 10, 20)         => 20
+missing(.a)                 => 1
+(0.1 + 0.2) == 0.3          => 0
+round(2.5)                  => 3
+round(3.5)                  => 4
+round(-2.5)                 => -2
+int(2.9)                    => 2
+int(-2.9)                   => -2
+ceil(2.1)                   => 3
+floor(-2.1)                 => -3
+mod(7, 3)                   => 1
+mod(-7, 3)                  => 2
+sqrt(-1)                    => .
+log(0)                      => .
+log(-1)                     => .
+exp(1000)                   => .

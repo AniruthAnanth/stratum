@@ -1,0 +1,15 @@
+# What `cargo fuzz` writes into this directory. Local rather than a set of
+# entries in the root `.gitignore`, because the root file is W00's and because
+# every path here is meaningful only next to this manifest.
+target/
+corpus/
+artifacts/
+coverage/
+
+# The fuzz package is its own workspace (see Cargo.toml), so it resolves its own
+# lockfile. Not committed: it is a nightly-only developer tool that no CI job
+# builds, `cargo deny` reads the workspace lockfile and never this one, and a
+# second lockfile that nothing checks is a supply-chain claim nobody is making.
+# What a fuzzing run has to be reproducible against is the corpus and the target,
+# and the corpus is the artifact worth keeping.
+Cargo.lock

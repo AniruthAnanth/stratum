@@ -1,0 +1,30 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_engine_free: (a: number, b: number) => void;
+export const abi_version: () => number;
+export const engine_complete: (a: number, b: number) => number;
+export const engine_completion_env_generation: (a: number) => bigint;
+export const engine_diagnostics: (a: number) => number;
+export const engine_doc_len: (a: number) => number;
+export const engine_doc_text: (a: number, b: number) => void;
+export const engine_generation: (a: number) => number;
+export const engine_lints: (a: number) => number;
+export const engine_narrative_regions: (a: number) => number;
+export const engine_new: () => number;
+export const engine_quick_fixes: (a: number, b: number) => number;
+export const engine_region_count: (a: number) => number;
+export const engine_region_hashes: (a: number) => number;
+export const engine_regions_view: (a: number) => number;
+export const engine_resegment: (a: number) => number;
+export const engine_reserve: (a: number, b: number) => number;
+export const engine_sections: (a: number) => number;
+export const engine_set_completion_env: (a: number, b: number, c: number) => void;
+export const engine_splice: (a: number, b: number, c: number, d: number, e: number) => void;
+export const engine_tokens: (a: number, b: number, c: number) => number;
+export const start: () => void;
+export const engine_linked: () => number;
+export const __wbindgen_add_to_stack_pointer: (a: number) => number;
+export const __wbindgen_export: (a: number, b: number, c: number) => void;
+export const __wbindgen_export2: (a: number, b: number) => number;
+export const __wbindgen_start: () => void;

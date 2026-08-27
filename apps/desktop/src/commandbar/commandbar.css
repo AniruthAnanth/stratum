@@ -1,0 +1,132 @@
+/* The Command pane — 06 §9.1, §10, §14.4.
+ *
+ * A prompt, an input and a ghost row. No border radius beyond the control
+ * token, no shadow, no gradient: §39's "Electron admin dashboard" is what this
+ * pane looks like the moment it grows a card of its own.
+ */
+
+.cmdbar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--canvas);
+  border-top: var(--hairline) solid var(--border);
+}
+
+/* Classic docks it as a real pane; Modern puts it at the foot of the editor. */
+.cmdbar[data-variant="pane"] {
+  border-top: none;
+  height: 100%;
+}
+
+.cmdbar__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-8);
+  min-height: 0;
+}
+
+/* The `.` prompt — a direct quotation of Stata (06 §10). */
+.cmdbar__prompt {
+  flex: 0 0 auto;
+  color: var(--text-meta);
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  user-select: none;
+}
+
+.cmdbar__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cmdbar__input .cm-editor {
+  background: transparent;
+  color: var(--text-body);
+}
+
+/* The completion list. Not a popover: it is part of the pane, it pushes nothing
+   around, and it disappears when the token becomes unique — 06 §9.1's "shows
+   the list and further typing narrows it". */
+.cmdbar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--sp-8) var(--sp-6) var(--sp-16);
+  max-height: calc(8 * var(--lh-code));
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  color: var(--text-secondary);
+  border-top: var(--hairline) solid var(--border);
+}
+
+.cmdbar__item {
+  padding: 0 var(--sp-2);
+}
+
+.cmdbar__more {
+  color: var(--text-meta);
+  letter-spacing: var(--ls-micro);
+}
+
+/* The ghost row (06 §10): 20 px, six seconds, or until the next keystroke. */
+.cmdbar__ghost {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  height: 20px;
+  padding: 0 var(--sp-8) 0 var(--sp-16);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-meta);
+}
+
+.cmdbar__ok {
+  color: var(--state-ok);
+}
+
+.cmdbar__bad {
+  color: var(--state-failed);
+  font-family: var(--font-mono);
+}
+
+.cmdbar__time {
+  font-variant-numeric: var(--font-numeric);
+}
+
+.cmdbar__promote {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cmdbar__promote:hover {
+  color: var(--accent);
+}
+
+.cmdbar__promote:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cmdbar__ghost {
+    animation: cmdbar-ghost-in var(--motion-state) var(--motion-state-easing);
+  }
+
+  @keyframes cmdbar-ghost-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en" data-role="pane">
+  <head>
+    <meta charset="utf-8" />
+    <title>Stratum</title>
+    <!-- 06 §13.3: the detached-pane window boots the SAME bundle with a tiny
+         shell — no dock, no top bar. Sharing the entry keeps the chunk graph
+         warm and keeps exactly one implementation of every pane. The role and
+         the pane id arrive as query parameters:
+             pane.html?role=pane&paneId=results&label=proj:pane:results -->
+    <script type="module" src="/src/boot/main.tsx"></script>
+  </head>
+  <body>
+    <div id="root" class="stratum-root"></div>
+    <noscript>Stratum requires JavaScript in its webview.</noscript>
+  </body>
+</html>

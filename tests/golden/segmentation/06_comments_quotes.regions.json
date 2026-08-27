@@ -1,0 +1,19 @@
+{
+  "abi": 1,
+  "regions": [
+    {"i": 0, "span": [28, 37], "outer": [0, 38], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [1, 1], "flags": ["executable"], "hash": "0e674bda1f7541ee948cf76e058102b5", "ordinal": 0},
+    {"i": 1, "span": [38, 39], "outer": [38, 39], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [2, 2], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 0},
+    {"i": 2, "span": [129, 138], "outer": [39, 139], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [6, 6], "flags": ["executable"], "hash": "61a7e254da1fa28dedd4f07304cddbf1", "ordinal": 0},
+    {"i": 3, "span": [139, 140], "outer": [139, 140], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [7, 7], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 1},
+    {"i": 4, "span": [140, 176], "outer": [140, 177], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [8, 8], "flags": ["executable"], "hash": "e76df3e47f2263e253e876afa91d7850", "ordinal": 0},
+    {"i": 5, "span": [177, 223], "outer": [177, 224], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [9, 9], "flags": ["executable"], "hash": "56c6b50efe11d49c9bdd80876ae31456", "ordinal": 0},
+    {"i": 6, "span": [224, 225], "outer": [224, 225], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [10, 10], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 2},
+    {"i": 7, "span": [225, 263], "outer": [225, 264], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [11, 11], "flags": ["executable"], "hash": "dab9cf80f0bf657e2a84ec1992ef9832", "ordinal": 0},
+    {"i": 8, "span": [264, 275], "outer": [264, 276], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [12, 12], "flags": ["executable"], "hash": "457e9a5dc2725cff0a85f11b9497cb76", "ordinal": 0},
+    {"i": 9, "span": [276, 277], "outer": [276, 277], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [13, 13], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 3},
+    {"i": 10, "span": [329, 342], "outer": [277, 343], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [15, 15], "flags": ["executable"], "hash": "dab845417be82efae8907ab48eba6727", "ordinal": 0}
+  ],
+  "sections": [],
+  "narrative": [],
+  "diagnostics": []
+}

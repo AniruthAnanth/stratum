@@ -1,0 +1,37 @@
+# The effect vocabulary and the two capability traits — ARCHITECTURE §5, A1.
+#
+# WHY THIS CRATE EXISTS (A1). `EffectTable` used to live in `stratum-runtime`.
+# That was a hard Cargo cycle — `stratum-stats` owns its own effect rows and so
+# needed the trait, while `stratum-runtime` depends on `stratum-stats` — and it
+# forced `stratum-intel -> stratum-runtime -> stratum-dta -> memmap2`, which made
+# `stratum-intel` unbuildable for wasm and collapsed C26.
+#
+# It contains the TRAIT and the VOCABULARY and **zero rows**. Rows come from
+# `stratum-runtime` (built-ins) and `stratum-stats` (its own commands), which is
+# what makes "you cannot add a command without declaring its effects" enforceable
+# by the compiler rather than by review.
+
+[package]
+name = "stratum-effects"
+description = "Static effect vocabulary and the EffectTable / CommandRegistry traits."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-parse = { path = "../stratum-parse" }
+camino = { workspace = true }
+smallvec = { workspace = true }
+rustc-hash = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

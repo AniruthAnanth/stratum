@@ -1,0 +1,10 @@
+1..1	Simple                	cr       	canonical=use
+2..2	Simple                	cr       	canonical=summarize
+3..3	Simple                	cr       	canonical=generate
+4..4	Simple                	cr       	canonical=summarize
+5..5	Simple                	cr       	canonical=regress	est
+6..6	Simple                	cr       	canonical=describe
+7..7	Simple                	cr       	macro
+8..8	Simple                	cr       	canonical=summarize
+9..9	Simple                	cr       	canonical=describe
+10..10	Simple                	cr       	canonical=regress	est

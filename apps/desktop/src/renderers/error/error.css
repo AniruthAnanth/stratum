@@ -1,0 +1,85 @@
+/* Errors — 06 §6.6, §14.5.
+ *
+ * The rail carries the state colour; the body does not become a red panel. A
+ * failed result is still a result, and a coloured background would break 06
+ * §14.8 rule 3 — colour encodes state, never "kind of result".
+ */
+
+.err__message {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  color: var(--state-failed);
+  white-space: pre-wrap;
+}
+
+.err[data-severity="warning"] .err__message {
+  color: var(--state-stale);
+}
+
+.err[data-severity="note"] .err__message,
+.err[data-severity="help"] .err__message {
+  color: var(--text-secondary);
+}
+
+.err__codes {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+  margin: var(--sp-4) 0 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+}
+
+.err__rc {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: default;
+}
+
+.err__rc:hover {
+  border-bottom-color: var(--accent);
+}
+
+.err__code {
+  color: var(--text-meta);
+}
+
+.err__token {
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-control);
+  background: var(--input);
+  color: var(--state-failed);
+}
+
+.err__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+  margin-top: var(--sp-6);
+}
+
+.err__suggestion {
+  padding: 0 var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-body);
+  font-size: var(--fs-micro);
+  line-height: calc(var(--lh-micro) + var(--sp-4));
+  cursor: default;
+}
+
+.err__suggestion:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.err__suggestion:disabled {
+  color: var(--text-disabled);
+}

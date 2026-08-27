@@ -1,0 +1,75 @@
+# Lint LEVELS live in each crate's `[lints]` table; this file configures the
+# lints that take parameters.
+
+msrv = "1.96"
+
+# Lints should fire on public API too — this is a workspace of internal crates,
+# not a published library, so there is no exported API to protect.
+avoid-breaking-exported-api = false
+
+# Thresholds. The numeric kernels legitimately have long argument lists and deep
+# match arms; the defaults produce noise there and nowhere useful.
+too-many-arguments-threshold = 10
+type-complexity-threshold = 350
+cognitive-complexity-threshold = 30
+enum-variant-name-threshold = 5
+
+doc-valid-idents = [
+  "..",
+  "MessagePack",
+  "NDJSON",
+  "SMCL",
+  "SolidJS",
+  "CodeMirror",
+  "Tauri",
+  "IEEE",
+  "BLAS",
+  "LAPACK",
+  "OLS",
+  "ANOVA",
+  "Okabe",
+  "blake3",
+]
+
+# ARCHITECTURE §8.11 (A19) as a compiler check rather than a grep. Every std f64
+# transcendental is banned everywhere: `stratum_core::math` is a thin re-export
+# of `libm`'s FREE functions, so the one crate allowed to compute these does not
+# call any of the methods below. Determinism across platforms is the whole point
+# — libm is one implementation, std's are the host libm's.
+#
+# `sqrt` is deliberately absent: IEEE-754 requires it to be correctly rounded, so
+# it is identical everywhere.
+disallowed-methods = [
+  { path = "f64::mul_add", reason = "FMA contracts a rounding step; results differ by target. ARCHITECTURE §8.11" },
+  { path = "f32::mul_add", reason = "FMA contracts a rounding step; results differ by target. ARCHITECTURE §8.11" },
+  { path = "f64::ln", reason = "use stratum_core::math (libm) — std delegates to the host libm" },
+  { path = "f64::ln_1p", reason = "use stratum_core::math (libm)" },
+  { path = "f64::log", reason = "use stratum_core::math (libm)" },
+  { path = "f64::log2", reason = "use stratum_core::math (libm)" },
+  { path = "f64::log10", reason = "use stratum_core::math (libm)" },
+  { path = "f64::exp", reason = "use stratum_core::math (libm)" },
+  { path = "f64::exp_m1", reason = "use stratum_core::math (libm)" },
+  { path = "f64::exp2", reason = "use stratum_core::math (libm)" },
+  { path = "f64::powf", reason = "use stratum_core::math (libm)" },
+  { path = "f64::powi", reason = "use stratum_core::math (libm)" },
+  { path = "f64::sin", reason = "use stratum_core::math (libm)" },
+  { path = "f64::cos", reason = "use stratum_core::math (libm)" },
+  { path = "f64::tan", reason = "use stratum_core::math (libm)" },
+  { path = "f64::asin", reason = "use stratum_core::math (libm)" },
+  { path = "f64::acos", reason = "use stratum_core::math (libm)" },
+  { path = "f64::atan", reason = "use stratum_core::math (libm)" },
+  { path = "f64::atan2", reason = "use stratum_core::math (libm)" },
+  { path = "f64::sinh", reason = "use stratum_core::math (libm)" },
+  { path = "f64::cosh", reason = "use stratum_core::math (libm)" },
+  { path = "f64::tanh", reason = "use stratum_core::math (libm)" },
+  { path = "f64::cbrt", reason = "use stratum_core::math (libm)" },
+  { path = "f64::hypot", reason = "use stratum_core::math (libm)" },
+]
+
+# There is deliberately no `disallowed-types` list. The two type-level rules we
+# actually want — "no ambient clock outside `ExecCtx`" and "no HashMap whose
+# iteration order can reach output" — cannot be expressed here: clippy.toml is
+# workspace-wide with no per-crate scoping, and `HashMap<K, V>` written without
+# an explicit `RandomState` never matches a `disallowed-types` path. Both live in
+# `cargo xtask layering` and `scripts/check-topology.sh`, which can see which
+# crate they are looking at. A rule that cannot fire is worse than no rule.

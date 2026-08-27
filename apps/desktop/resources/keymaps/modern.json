@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "id": "modern",
+  "name": "Modern",
+  "_source": "docs/design/06-ui-architecture.md §12.2, transcribed row for row.",
+  "_mod": "`Mod` is Cmd on macOS and Ctrl elsewhere; it is resolved at load time from the host's platform, never written out per platform.",
+  "bindings": [
+    { "command": "run.block", "key": "Mod+Enter" },
+    { "command": "run.blockAndAdvance", "key": "Shift+Enter", "when": "editorFocus" },
+    { "command": "run.selection", "key": "Alt+Enter", "when": "editorFocus && !selectionEmpty" },
+    { "command": "run.fromHere", "key": "Mod+Alt+Enter" },
+    { "command": "run.fileClean", "key": "Mod+Shift+Enter" },
+    { "command": "run.above", "key": "Mod+Alt+Up" },
+    { "command": "run.below", "key": "Mod+Alt+Down" },
+    { "command": "run.allStale", "key": "Mod+Shift+R" },
+    { "command": "run.break", "key": "Mod+." },
+
+    { "command": "commandbar.focus", "key": "Mod+L" },
+    { "command": "palette.quickOpen", "key": "Mod+P" },
+    { "command": "palette.commands", "key": "Mod+Shift+P" },
+
+    { "command": "pane.toggleAssistant", "key": "Mod+J" },
+    { "command": "view.cycleInlineResults", "key": "Mod+Alt+I" },
+    { "command": "view.toggleDocView", "key": "Mod+Shift+V" },
+    { "command": "view.modelComparison", "key": "Mod+Shift+M" },
+    { "command": "data.browse", "key": "Mod+Shift+D" },
+
+    { "command": "layout.apply", "key": "Mod+Alt+1", "args": { "id": "modern" } },
+    { "command": "layout.apply", "key": "Mod+Alt+2", "args": { "id": "classic" } },
+    { "command": "layout.apply", "key": "Mod+Alt+3", "args": { "id": "focus" } },
+
+    { "command": "pane.toggle", "key": "Mod+1", "args": { "index": 1 } },
+    { "command": "pane.toggle", "key": "Mod+2", "args": { "index": 2 } },
+    { "command": "pane.toggle", "key": "Mod+3", "args": { "index": 3 } },
+    { "command": "pane.toggle", "key": "Mod+4", "args": { "index": 4 } },
+    { "command": "pane.toggle", "key": "Mod+5", "args": { "index": 5 } },
+    { "command": "pane.toggle", "key": "Mod+6", "args": { "index": 6 } },
+    { "command": "pane.toggle", "key": "Mod+7", "args": { "index": 7 } },
+    { "command": "pane.toggle", "key": "Mod+8", "args": { "index": 8 } },
+    { "command": "pane.toggle", "key": "Mod+9", "args": { "index": 9 } },
+
+    { "command": "edit.toggleComment", "key": "Mod+/", "when": "editorFocus" },
+    { "command": "help.atCaret", "key": "F1" },
+
+    { "command": "results.clearAll", "key": "Mod+Shift+K" },
+    { "command": "results.collapseAll", "key": "Mod+Alt+C" },
+    {
+      "command": "results.clearBlock",
+      "key": "Mod+Shift+Backspace",
+      "when": "editorFocus || cardFocus"
+    },
+
+    { "command": "keymap.edit", "key": "Mod+K Mod+S" }
+  ]
+}

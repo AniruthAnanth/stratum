@@ -1,0 +1,201 @@
+# Stratum — packaging smoke tests. Design doc 08 §8.5, A33 / Scenario E, W22.
+#
+# Reusable, called by package.yml on the artifacts each runner just built.
+# EVERY assertion runs against the PACKAGED artifact, never the build tree —
+# this is the only gate that catches "the bundle is fine but the webview
+# cannot load the frontend", the single most common Tauri packaging failure.
+# Each assertion is implemented in `cargo xtask smoke` so a contributor can
+# run exactly what CI runs.
+#
+# The engine edge at HEAD is a DECLARED gap, not a failure: `stratum run`
+# reports rc 10 with the engine-not-linked diagnostic, and
+# tests/smoke/expected.jsonl commits exactly that stream. `--selftest` exits 0
+# with the engine refusing SessionOpen honestly (W08/W09's ordering blocker) —
+# a crash or a hung webview still fails.
+#
+# This workflow never needs Stata, on any runner, in any job (spec §32).
+
+name: smoke
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    outputs:
+      macos_signed:
+        description: "true when the packaged .app carries a Developer ID (not ad-hoc) signature"
+        value: ${{ jobs.macos.outputs.signed }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  macos:
+    name: macos
+    runs-on: macos-15
+    outputs:
+      signed: ${{ steps.gatekeeper.outputs.signed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with: { key: smoke-macos }
+      - uses: actions/download-artifact@v4
+        with: { name: bundles-macos, path: dist-in }
+
+      - name: The .dmg is intact, in its era's signature state, and carries Stratum.app
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Unsigned era: checksum-valid and unsigned (ad-hoc-signed images are
+          # refused — Gatekeeper blocks those at mount). Signed era: Developer
+          # ID + Gatekeeper + stapled ticket, hard gates.
+          cargo run -p xtask -- sign verify-dmg "$(ls dist-in/*.dmg)"
+          cargo run -p xtask -- smoke dmg "$(ls dist-in/*.dmg)"
+
+      - name: Install from the tar.gz (the unquarantined path users take)
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xzf dist-in/*.app.tar.gz -C /Applications
+          test -d /Applications/Stratum.app
+
+      - name: Signature state (ad-hoc is legal, broken is not)
+        id: gatekeeper
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run -p xtask -- dist verify --app /Applications/Stratum.app --universal
+          cargo run -p xtask -- sign verify-app /Applications/Stratum.app
+          if codesign -dvv /Applications/Stratum.app 2>&1 | grep -q "Signature=adhoc"; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            spctl -a -vvv -t exec /Applications/Stratum.app
+          fi
+
+      - name: File associations offered as Alternate, never stealing (08 §6.3)
+        shell: bash
+        run: |
+          set -euo pipefail
+          plist=/Applications/Stratum.app/Contents/Info.plist
+          plutil -extract CFBundleDocumentTypes xml1 -o - "$plist" | grep -q com.stata.stata.do
+          plutil -extract CFBundleDocumentTypes xml1 -o - "$plist" | grep -q com.stata.stata.dta
+          ranks=$(plutil -extract CFBundleDocumentTypes xml1 -o - "$plist" | grep -c "<string>Alternate</string>")
+          test "$ranks" -ge 2
+
+      - name: The bundled CLI answers from inside the .app
+        shell: bash
+        run: |
+          set -euo pipefail
+          /Applications/Stratum.app/Contents/MacOS/stratum version --json | jq -e '.version'
+          # rc 10 is the declared engine gap at HEAD; the stream shape is the test.
+          /Applications/Stratum.app/Contents/MacOS/stratum run tests/smoke/hello.do --json > out.jsonl || true
+          cargo run -p xtask -- smoke assert-stream out.jsonl tests/smoke/expected.jsonl
+
+      - name: Packaged app boots its webview (--selftest exits 0)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run -p xtask -- smoke selftest /Applications/Stratum.app
+
+  # ---------------------------------------------------------------------------
+  windows:
+    name: windows
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with: { key: smoke-windows }
+      - uses: actions/download-artifact@v4
+        with: { name: bundles-windows, path: dist-in }
+
+      - name: Silent per-user install (NSIS)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist-in -Filter *setup*.exe | Select-Object -First 1
+          Start-Process -Wait $setup.FullName -ArgumentList "/S"
+          $exe = "$env:LOCALAPPDATA\Programs\Stratum\stratum.exe"
+          if (-not (Test-Path $exe)) { throw "bundled CLI missing after install" }
+
+      - name: The bundled CLI answers, stream matches the committed expectation
+        shell: pwsh
+        run: |
+          $exe = "$env:LOCALAPPDATA\Programs\Stratum\stratum.exe"
+          & $exe version --json | ConvertFrom-Json
+          & $exe run tests\smoke\hello.do --json > out.jsonl
+          # rc 10 is the declared engine gap at HEAD; the stream is the test.
+          cargo run -p xtask -- smoke assert-stream out.jsonl tests/smoke/expected.jsonl
+
+      - name: Associations offered, defaults NOT stolen (08 §6.3)
+        shell: pwsh
+        run: |
+          $p = Get-ItemProperty "HKCU:\Software\Classes\.do\OpenWithProgids" -ErrorAction Stop
+          if (-not ($p.PSObject.Properties.Name -contains "Stratum.DoFile")) { throw ".do not offered" }
+          $default = (Get-Item "HKCU:\Software\Classes\.do" -ErrorAction SilentlyContinue)
+          if ($default -and $default.GetValue("")) { throw ".do default was STOLEN: $($default.GetValue(''))" }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Stratum.lnk") -and
+              -not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Stratum\Stratum.lnk")) {
+            throw "Start menu shortcut missing"
+          }
+
+      - name: Packaged app boots its webview (--selftest exits 0)
+        shell: pwsh
+        run: |
+          cargo run -p xtask -- smoke selftest "$env:LOCALAPPDATA\Programs\Stratum\Stratum.exe"
+
+      - name: Uninstall leaves a clean registry
+        shell: pwsh
+        run: |
+          $un = "$env:LOCALAPPDATA\Programs\Stratum\uninstall.exe"
+          Start-Process -Wait $un -ArgumentList "/S"
+          cargo run -p xtask -- smoke assert-registry-clean
+
+  # ---------------------------------------------------------------------------
+  linux:
+    name: linux (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04] # build on 22.04, prove both (glibc floor)
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: smoke-linux-${{ matrix.os }}
+      - uses: actions/download-artifact@v4
+        with: { name: bundles-linux, path: dist-in }
+
+      - name: System deps for the installed app
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-0 libgtk-3-0 xvfb desktop-file-utils jq
+
+      - name: Install the .deb
+        run: sudo apt-get install -y ./dist-in/*.deb
+
+      - name: CLI answers, stream matches, desktop integration valid
+        shell: bash
+        run: |
+          set -euo pipefail
+          stratum version --json | jq -e '.version'
+          stratum run tests/smoke/hello.do --json > out.jsonl || true
+          cargo run -p xtask -- smoke assert-stream out.jsonl tests/smoke/expected.jsonl
+          desktop-file-validate /usr/share/applications/dev.stratum.Stratum.desktop
+          test "$(xdg-mime query filetype tests/smoke/hello.do)" = "text/x-stata-do"
+
+      - name: Packaged app boots its webview (--selftest exits 0, headless X)
+        run: xvfb-run -a stratum-desktop --selftest
+
+      - name: AppImage boots too
+        run: |
+          chmod +x dist-in/*.AppImage
+          xvfb-run -a ./dist-in/*.AppImage --appimage-extract-and-run --selftest
+
+      - name: Uninstall cleanly
+        run: |
+          sudo apt-get remove -y stratum-desktop || sudo apt-get remove -y stratum
+          ! command -v stratum-desktop

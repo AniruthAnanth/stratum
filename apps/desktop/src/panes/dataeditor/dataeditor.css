@@ -1,0 +1,319 @@
+/* Data Editor — 06 §9.7, §14, §15.3.
+ *
+ * The visual argument against §39, for this pane specifically. A spreadsheet is
+ * the single easiest surface to make look like "Electron admin dashboard" or
+ * "old Stata with rounded corners", so three rules are applied without exception:
+ *
+ *   1. NO chrome that a broadsheet table would not have. No zebra striping, no
+ *      raised header bar, no radius above --radius-control, no shadow anywhere.
+ *      Column separation is a hairline, and the header is separated by weight
+ *      of rule, exactly as `styles/tables.css` does it for result tables.
+ *   2. Ink carries type. 06 §9.7's four inks are the only colour in the body,
+ *      and they are the same four the eye already reads in a Stata Data Editor.
+ *   3. The grid's own font is --font-mono with --font-numeric, so a column of
+ *      numbers lines up on its digits the way it does in a result table three
+ *      panes away. The header is --font-sans, because a variable NAME is a label
+ *      and not a value.
+ *
+ * Every colour here is a token from resources/tokens.generated.css. Two roles
+ * (string ink, value-label ink) have no token of their own and are aliased to
+ * the tokens whose values 06 §9.7 names; see grid/paint.ts for the escalation.
+ */
+
+.dataeditor {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+  background: var(--canvas);
+  color: var(--text-body);
+}
+
+.dataeditor__body {
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.dataeditor__grid {
+  position: relative;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.dataeditor__sidebar {
+  inline-size: 260px;
+  flex: 0 0 auto;
+  border-inline-start: var(--hairline) solid var(--border);
+  overflow: auto;
+}
+
+/* -- filter panel (06 §9.7 "Filter observations") ------------------------- */
+
+.dataeditor__filter {
+  display: flex;
+  align-items: end;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-block-end: var(--hairline) solid var(--border);
+  background: var(--surface);
+}
+
+.dataeditor__filter .field {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* -- status bar ------------------------------------------------------------
+ * Stata's five fields in Stata's order. The separation is a real gap rather
+ * than four literal spaces, and the labels are --text-label so the VALUES are
+ * what the eye lands on. */
+
+.dataeditor__status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-16);
+  block-size: var(--h-status-bar);
+  padding-inline: var(--sp-12);
+  border-block-start: var(--hairline) solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-body);
+  flex: 0 0 auto;
+}
+
+.dataeditor__status-field {
+  display: inline-flex;
+  gap: var(--sp-4);
+  white-space: nowrap;
+}
+
+.dataeditor__status-label {
+  color: var(--text-label);
+}
+
+.dataeditor__status-value {
+  font-variant-numeric: var(--font-numeric);
+}
+
+.dataeditor__status-spacer {
+  flex: 1 1 auto;
+}
+
+.dataeditor__status-mode {
+  color: var(--text-label);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+}
+
+/* -- the grid --------------------------------------------------------------- */
+
+.grid {
+  position: relative;
+  block-size: 100%;
+  inline-size: 100%;
+  overflow: hidden;
+  /* The synthetic scrollbar owns the axes; the browser must not also scroll a
+     parent when the wheel reaches an edge (06 §15.2). */
+  overscroll-behavior: contain;
+  contain: layout paint style;
+}
+
+.grid__viewport {
+  position: absolute;
+  inset: 0;
+}
+
+.grid__canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+/* The IME overlay. A real input, over the cell, with the grid's own metrics so
+   that what is typed sits exactly where it will be drawn (06 §15.3). */
+.grid__editor {
+  position: absolute;
+  z-index: 3;
+  margin: 0;
+  padding: 0 var(--sp-8);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-none);
+  background: var(--overlay);
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  font-variant-numeric: var(--font-numeric);
+  outline: none;
+}
+
+/* The accessibility mirror. Clipped, NOT hidden: display:none and
+   visibility:hidden both remove the subtree from the accessibility tree, which
+   is the one thing this element exists to be in (grid/a11y.ts). */
+.grid__mirror {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+
+/* The focus ring is drawn on the canvas by the painter, but the FOCUSED element
+   is the mirror, so the visible affordance has to be hung on the container. */
+.grid:focus-within .grid__canvas,
+.grid:focus-within .grid__dom {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* -- synthetic scrollbars (06 §15.2) ---------------------------------------
+ * Our own track and thumb because 10 M rows x 22 px is 220 M px and browsers
+ * clamp element height near 33.5 M. There is no spacer div to style. */
+
+.grid-scrollbar {
+  position: absolute;
+  z-index: 2;
+  background: transparent;
+}
+
+.grid-scrollbar--vertical {
+  inset-block: var(--h-grid-row-comfortable) 0;
+  inset-inline-end: 0;
+  inline-size: 10px;
+}
+
+.grid-scrollbar--horizontal {
+  inset-inline: 0 10px;
+  inset-block-end: 0;
+  block-size: 10px;
+}
+
+.grid-scrollbar__thumb {
+  position: absolute;
+  inset-inline-start: 2px;
+  inset-block-start: 0;
+  inline-size: 6px;
+  border-radius: var(--radius-control);
+  background: var(--border-strong);
+}
+
+.grid-scrollbar--horizontal .grid-scrollbar__thumb {
+  inset-block-start: 2px;
+  inset-inline-start: 0;
+  block-size: 6px;
+  inline-size: auto;
+}
+
+.grid-scrollbar__thumb:hover {
+  background: var(--text-disabled);
+}
+
+/* -- the DOM fallback surface (Q8) -----------------------------------------
+ * Reached only when the canvas probe says this platform cannot sustain the
+ * grid. It is deliberately the SAME typography and the same inks: a user on a
+ * slower webview gets fewer observations, not a different product. */
+
+.grid__dom {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--h-grid-row);
+  font-variant-numeric: var(--font-numeric);
+  contain: strict;
+}
+
+.grid__dom-header {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  block-size: var(--h-grid-row-comfortable);
+  display: flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-medium);
+  color: var(--text-label);
+  border-block-end: var(--hairline) solid var(--border-strong);
+  white-space: nowrap;
+}
+
+.grid__dom-gutter {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 56px;
+  border-inline-end: var(--hairline) solid var(--border);
+  color: var(--text-meta);
+}
+
+.grid__row {
+  position: absolute;
+  inset-block-start: 0;
+  display: flex;
+  block-size: var(--h-grid-row);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.grid__obs {
+  position: absolute;
+  inset-inline: 0 var(--sp-8);
+  block-size: var(--h-grid-row);
+  text-align: end;
+  color: var(--text-meta);
+}
+
+.grid__cell,
+.grid__headcell {
+  display: inline-block;
+  block-size: var(--h-grid-row);
+  padding-inline: var(--sp-8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-inline-end: var(--hairline) solid var(--border);
+}
+
+.grid__cell--left {
+  text-align: start;
+}
+
+.grid__cell--right {
+  text-align: end;
+}
+
+/* 06 §9.7's four inks, so that the eye reads storage type before it reads the
+   value. The two aliased roles are the ones tokens.json has no name for. */
+.grid__cell--text {
+  color: var(--state-failed);
+}
+
+.grid__cell--labelled {
+  color: var(--accent);
+}
+
+.grid__cell--numeric {
+  color: var(--text-body);
+}
+
+.grid__cell--missing {
+  color: var(--text-meta);
+}
+
+.grid__cell--pending {
+  color: var(--text-disabled);
+}
+
+.grid__cell.is-selected {
+  background: var(--accent-subtle);
+}

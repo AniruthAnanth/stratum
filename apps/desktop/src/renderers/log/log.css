@@ -1,0 +1,66 @@
+/* Styled runs — 06 §9.2, §14.5.
+ *
+ * Stata's SMCL palette is navy-on-white; ours is the product's own ink. The
+ * distinction the palette must preserve is Stata's own: `{txt}` is body ink and
+ * `{res}` — the result values — is a visibly different ink, because that
+ * distinction is the reason A12 made `classic_text` return runs at all.
+ */
+
+.smcl {
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-body);
+  white-space: pre;
+  tab-size: 8;
+}
+
+.smcl--text {
+  color: var(--text-body);
+}
+
+.smcl--input {
+  color: var(--text-heading);
+  font-weight: var(--fw-semibold);
+}
+
+.smcl--result {
+  color: var(--text-heading);
+}
+
+.smcl--error {
+  color: var(--state-failed);
+}
+
+.smcl--error_token {
+  color: var(--state-failed);
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-underline-offset: 2px;
+}
+
+.smcl--hilite {
+  color: var(--accent);
+}
+
+.smcl--comment {
+  color: var(--text-meta);
+}
+
+.smcl--heading {
+  color: var(--text-heading);
+  font-weight: var(--fw-medium);
+}
+
+.smcl--rule {
+  color: var(--rule-mid);
+}
+
+.smcl--link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

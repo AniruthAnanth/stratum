@@ -1,0 +1,71 @@
+# The Stata front end: scanner, segmenter, macro expander, parser.
+#
+# W04 ships the scanner half — `segment`/`resegment`, `SpanMap`, `LineIndex`,
+# `canonical_tokens` — plus the `CommandAst` / `CommandSig` declarations that
+# `stratum-effects` and `stratum-intel` need in wave 1 (A29). W04b adds
+# `macros/`, `lex/`, `parse/` and the generated command table.
+#
+# ARCHITECTURE §8.4: this crate builds for `wasm32-unknown-unknown` and reaches
+# no filesystem, no `tokio`, no `time`, no `memmap2` and no locale crate. Every
+# dependency below is checked against that by `cargo xtask layering`, which
+# resolves the graph for the wasm target rather than reading this file.
+
+[package]
+name = "stratum-parse"
+description = "Stata scanner, logical-region segmenter, macro expander and parser."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+# ARCHITECTURE §5 already lists this crate's dependencies as "proto, core"; the
+# edge was simply not written down here in wave 1. W04b needs exactly one thing
+# from it — `fmt::fmt_macro`, design 02 §4.4's `%18.0g`-then-trim rule for
+# turning an `=exp` result into macro text. There is ONE `%g` in this workspace,
+# calibrated against tests/golden/stata18/gformat.log; a second one here would be
+# a second set of rounding boundaries for the same job.
+#
+# `default-features = false` is load-bearing: `stratum-core`'s default feature
+# pulls `rayon`, and `cargo xtask layering --wasm-build` checks THIS crate with
+# `--no-default-features`, which does not reach into a dependency's defaults.
+stratum-core = { path = "../stratum-core", default-features = false }
+serde = { workspace = true }
+smallvec = { workspace = true }
+bitflags = { workspace = true }
+# CodeHash and TextHash are blake3-128 (CONTRACTS §1.1). There is exactly one
+# hash function in this crate: design 02 §5.1's `xxh3` would have been a second
+# one for the same job, and `TextHash` already means "blake3-128 of the raw
+# bytes including comments".
+blake3 = { workspace = true }
+# `hash_ordinal` needs a CodeHash -> count map on the hot segmentation path.
+# Never iterated, so its iteration order cannot reach output.
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
+# The reference evaluators in `tests/expr.rs` and `tests/macro.rs` reduce a
+# parse to a number and compare it against what StataMP 18.5 printed. They must
+# use ADR-004's pinned transcendentals and the ONE missing-value definition, not
+# `std`'s — `std`'s f64 `exp`/`ln`/`powf` forward to the platform libm and differ
+# bitwise between glibc, musl and Apple's, which is the determinism gate failing
+# quietly inside its own test.
+stratum-core = { path = "../stratum-core", default-features = false }
+proptest = { workspace = true }
+criterion = { workspace = true }
+blake3 = { workspace = true }
+pretty_assertions = { workspace = true }
+
+[[bench]]
+name = "segment"
+harness = false
+
+[lints.rust]
+# Nothing here justifies an unsafe block: it is a byte scanner over `&str`.
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

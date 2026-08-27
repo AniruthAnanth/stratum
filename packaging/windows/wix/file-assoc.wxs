@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Stratum MSI file-association fragment (design 08 §6.3, ADR-011).
+  Referenced from tauri.windows.conf.json via wix.fragmentPaths +
+  wix.componentRefs. Same never-steal contract as the NSIS hook: ProgIDs and
+  OpenWithProgids only; the (Default) value of the .do/.dta extension keys is
+  never written. The MSI installs per-machine, so keys land under HKLM.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="StratumFileAssociations" Guid="6f2a9c60-b7a1-4a1e-8f0e-2f4d5f3f9a01" KeyPath="yes">
+        <RegistryValue Root="HKLM" Key="Software\Classes\Stratum.DoFile" Value="Stata Do-file" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\Stratum.DoFile\DefaultIcon" Value="[INSTALLDIR]Stratum.exe,1" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\Stratum.DoFile\shell\open\command" Value="&quot;[INSTALLDIR]Stratum.exe&quot; &quot;%1&quot;" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\Stratum.DtaFile" Value="Stata Dataset" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\Stratum.DtaFile\DefaultIcon" Value="[INSTALLDIR]Stratum.exe,2" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\Stratum.DtaFile\shell\open\command" Value="&quot;[INSTALLDIR]Stratum.exe&quot; &quot;%1&quot;" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.do\OpenWithProgids" Name="Stratum.DoFile" Value="" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Classes\.dta\OpenWithProgids" Name="Stratum.DtaFile" Value="" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Stratum\Capabilities" Name="ApplicationName" Value="Stratum" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Stratum\Capabilities" Name="ApplicationDescription" Value="Interactive statistical IDE" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Stratum\Capabilities\FileAssociations" Name=".do" Value="Stratum.DoFile" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\Stratum\Capabilities\FileAssociations" Name=".dta" Value="Stratum.DtaFile" Type="string"/>
+        <RegistryValue Root="HKLM" Key="Software\RegisteredApplications" Name="Stratum" Value="Software\Stratum\Capabilities" Type="string"/>
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

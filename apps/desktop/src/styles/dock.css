@@ -1,0 +1,89 @@
+/* dockview overrides - 06 §1: "Its stock CSS is a generic-IDE look; we override
+ * essentially all of it."
+ *
+ * dockview's own stylesheet is imported first for the STRUCTURAL rules only
+ * (absolute positioning of groups, the sash hit areas, the drop overlay
+ * geometry). Everything visible is redefined below against our tokens. The
+ * variables dockview exposes are named `--dv-*`; setting them is the supported
+ * way to retheme it and it keeps us off its internal class names.
+ */
+
+@import "dockview-core/dist/styles/dockview.css";
+
+.dv-theme-stratum {
+  --dv-background-color: var(--app-bg);
+  --dv-paneview-active-outline-color: var(--accent);
+  --dv-tabs-and-actions-container-background-color: var(--surface);
+  --dv-tabs-and-actions-container-font-size: var(--fs-micro);
+  --dv-tabs-and-actions-container-height: var(--h-pane-header);
+  --dv-group-view-background-color: var(--canvas);
+
+  --dv-activegroup-visiblepanel-tab-background-color: var(--canvas);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--surface);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--canvas);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--surface);
+  --dv-activegroup-visiblepanel-tab-color: var(--text-heading);
+  --dv-activegroup-hiddenpanel-tab-color: var(--text-meta);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--text-label);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--text-meta);
+
+  --dv-separator-border: var(--border);
+  --dv-paneview-header-border-color: var(--border);
+  --dv-drag-over-background-color: var(--accent-subtle);
+  --dv-drag-over-border-color: var(--accent);
+
+  /* No elevation on content, ever (06 §14.8 rule 4). dockview puts a shadow on
+     the floating group; a floating pane is a true overlay, so it keeps the
+     overlay level and nothing else does. */
+  --dv-floating-box-shadow: var(--elev-overlay);
+  --dv-active-sash-color: var(--accent);
+  --dv-tab-divider-color: var(--border);
+
+  height: 100%;
+  background: var(--app-bg);
+}
+
+/* Our tab. 28px, hairline-separated, square. No rounded shoulder, no gradient,
+   no coloured underline: the active tab is distinguished by ink and by sharing
+   the canvas colour with the pane below it, which is what makes the tab strip
+   read as the top edge of a sheet rather than as a row of buttons. */
+.pane-tab {
+  display: flex;
+  align-items: center;
+  height: var(--h-pane-header);
+  padding: 0 var(--sp-12);
+  border-right: var(--hairline) solid var(--border);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: default;
+  transition: color var(--motion-state) var(--motion-state-easing);
+}
+
+.pane-tab__label {
+  display: block;
+}
+
+/* dockview marks the active tab; we key off its class rather than duplicating
+   its state machine. */
+.dv-tab.dv-active-tab .pane-tab {
+  color: var(--text-heading);
+  box-shadow: inset 0 -1px 0 0 var(--accent);
+}
+
+.dv-tab:not(.dv-active-tab) .pane-tab:hover {
+  color: var(--text-body);
+}
+
+/* The group container: a sheet on a ground. One hairline, no radius. */
+.dv-groupview {
+  background: var(--canvas);
+  border: var(--hairline) solid var(--border);
+}
+
+/* dockview draws a 4px watermark border by default; we have no watermark. */
+.dv-watermark {
+  display: none;
+}

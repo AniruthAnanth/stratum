@@ -1,0 +1,94 @@
+# ARCHITECTURE.md §5: "`Column`/`NumCol`/`FixedStrCol`/`StrLCol`,
+# `Frame`/`FrameSet`/`FrameSnapshot` (`Arc` CoW), `Variable`, `ValueLabelSet`,
+# `CharTable`, `Sample`/`SampleBuilder`, `WeightSpec`/`EvaluatedWeights`,
+# `sort`/`sortkey`, `BySpec`/`GroupIndex`/`ByCursor`, `DataVersion`, `page()`.
+# **Write barrier** `Frame::col_mut`."  W02 ships everything on that list except
+# the five modules W02b owns (weights, bygroup, view, order, page, strl logic).
+#
+# The dependency list, and why each entry is load-bearing:
+#
+#   stratum-proto  VarIdx/VarId/StorageType/ColumnDigest/VariableInfo/Provenance
+#                  are declared THERE and nowhere else (A10). A structurally
+#                  identical `Provenance` here is exactly the twin A10 bans.
+#   stratum-core   THE missing-value definition, the promotion ladder, and
+#                  `reduce::CHUNK_ROWS` — which is also our storage granule and
+#                  our undo-journal granule (A18, C35). One constant, everywhere.
+#   rustc-hash     varname -> VarIdx on every varlist resolution. Short,
+#                  non-adversarial keys from a file the user opened themselves;
+#                  SipHash buys nothing here and costs ~2x.
+#   indexmap       `FrameSet` is insertion-ordered because `frames dir` prints
+#                  it that way.
+#   blake3         `ColumnDigest` is blake3-128 (CONTRACTS §1.1). Not a security
+#                  boundary; it is how rollback proves it restored the bytes.
+#   rayon          behind the default `parallel` feature, used ONLY for the
+#                  radix histogram/scatter and the bulk row-major ingest. Every
+#                  float reduction still goes through
+#                  `stratum_core::reduce::map_reduce_blocks` (C35).
+#
+# NOT taken, against `04` §1.1: `compact_str` (a name is an `Arc<str>` here, so
+# cloning a `Variable` allocates nothing at all, which is what makes `frame copy`
+# O(nvars) *pointer* work), `bytemuck` (the strided ingest is a plain typed loop
+# that LLVM vectorises; `cast_slice` would only pay on the aligned path we
+# already special-case), and `memmap2` (Q9: v1 is resident-only — see
+# `perf::MemoryPolicy`).
+
+[package]
+name = "stratum-data"
+description = "Stratum's columnar data engine: chunked copy-on-write columns, frames, the undo journal, samples and Stata-order sorting."
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = ["parallel"]
+parallel = ["dep:rayon", "stratum-core/parallel"]
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-core = { path = "../stratum-core", default-features = false }
+serde = { workspace = true }
+thiserror = { workspace = true }
+rustc-hash = { workspace = true }
+indexmap = { workspace = true }
+blake3 = { workspace = true }
+rayon = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+criterion = { workspace = true }
+pretty_assertions = { workspace = true }
+
+[lints.rust]
+# `deny`, not `forbid`, and the difference is deliberate: `src/lib.rs` carries an
+# in-source `#![forbid(unsafe_code)]`, so the LIBRARY is under the same rule
+# `stratum-core` is. What `deny` additionally permits is `tests/journal.rs` and
+# `tests/cow.rs` opting in with a documented `#![allow(unsafe_code)]` to install
+# a counting `#[global_allocator]` — which is the instrument the A18 acceptance
+# bullets ("asserted by counting allocations") are written against. `forbid`
+# here would leave that bullet unprovable, and an unprovable gate is the failure
+# mode ADR-017 exists to stop.
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[[bench]]
+name = "transpose"
+harness = false
+
+[[bench]]
+name = "sort"
+harness = false
+
+[[bench]]
+name = "widen"
+harness = false
+
+[[bench]]
+name = "journal"
+harness = false

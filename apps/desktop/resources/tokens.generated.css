@@ -1,0 +1,273 @@
+/* Design tokens, generated from design/tokens.json by `cargo xtask tokens`.
+ *
+ * DO NOT EDIT. This file is a committed build artifact: `cargo xtask tokens
+ * --check` regenerates it into a buffer and fails CI if the bytes differ
+ * (ARCHITECTURE §8.14). Change design/tokens.json and regenerate.
+ *
+ * Theme selection follows the three-state pattern: the light palette is the
+ * unconditional :root definition, dark applies under `prefers-color-scheme`
+ * unless the root element carries an explicit `data-theme="light"`, and
+ * `data-theme="dark"` wins in both directions. `LayoutSpec.defaults.theme`
+ * (CONTRACTS.md §9.1) has exactly the three states this encodes: "light",
+ * "dark" and "system" (the attribute absent).
+ */
+
+:root {
+  /* ---- typography ----------------------------------------------------- */
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-serif: "IBM Plex Serif", Georgia, serif;
+  --font-numeric: tabular-nums lining-nums;
+
+  /* Line height and letter spacing get no `var` in tokens.json; the names are
+     the size's own var with `--fs-` swapped for `--lh-` / `--ls-`. */
+  --fs-micro: 11px;
+  --lh-micro: 14px;
+  --ls-micro: 0.06em;
+  --fs-small: 12px;
+  --lh-small: 16px;
+  --fs-body: 13px;
+  --lh-body: 18px;
+  --fs-code: 13px;
+  --lh-code: 20px;
+  --fs-mid: 15px;
+  --lh-mid: 25px;
+  --fs-large: 18px;
+  --lh-large: 24px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* ---- space ---------------------------------------------------------- */
+  --sp-2: 2px;
+  --sp-4: 4px;
+  --sp-6: 6px;
+  --sp-8: 8px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+
+  /* ---- metrics -------------------------------------------------------- */
+  --h-pane-header: 28px;
+  --h-toolbar: 32px;
+  --h-top-bar: 38px;
+  --h-status-bar: 22px;
+  --h-grid-row: 22px;
+  --h-grid-row-comfortable: 26px;
+  --w-gutter: 18px;
+  --w-state-rail: 2px;
+  --card-pad-y: 8px;
+  --card-pad-x: 12px;
+  --card-gap-above: 8px;
+  --card-gap-below: 12px;
+  --hairline: 1px;
+
+  /* ---- radius --------------------------------------------------------- */
+  --radius-none: 0px;
+  --radius-control: 3px;
+
+  /* ---- motion --------------------------------------------------------- */
+  --motion-state: 90ms;
+  --motion-state-easing: ease-out;
+  --motion-collapse: 120ms;
+  --motion-collapse-easing: cubic-bezier(.2,0,0,1);
+  --motion-shuttle: 2s;
+
+  /* ---- icon ----------------------------------------------------------- */
+  --icon-grid: 14px;
+  --icon-stroke: 1.25px;
+  --icon-linecap: square;
+  --icon-linejoin: square;
+
+  /* ---- colour: "Broadsheet Light" ------------------------------------- */
+  color-scheme: light;
+  /* neutral ramp */
+  --n0: #FFFFFF;
+  --n1: #FAFAFB;
+  --n2: #F4F5F6;
+  --n3: #EDEEF0;
+  --n4: #E3E5E8;
+  --n5: #D3D6DA;
+  --n6: #B4B9C0;
+  --n7: #696F79;
+  --n8: #5C636D;
+  --n9: #3A414B;
+  --n10: #232830;
+  --n11: #12151A;
+
+  /* semantic roles */
+  --app-bg: #E3E5E8;
+  --canvas: #FAFAFB;
+  --surface: #F4F5F6;
+  --overlay: #FFFFFF;
+  --input: #EDEEF0;
+  --border: #E3E5E8;
+  --border-strong: #D3D6DA;
+  --rule-mid: #D3D6DA;
+  --rule-edge: #12151A;
+  --text-disabled: #B4B9C0;
+  --text-meta: #696F79;
+  --text-label: #5C636D;
+  --text-secondary: #3A414B;
+  --text-body: #232830;
+  --text-heading: #12151A;
+
+  /* accent */
+  --accent: #116A6A;
+  --accent-hover: #0D5757;
+  --accent-subtle: #E2F0EF;
+
+  /* block state — also the gutter and state-rail colours */
+  --state-ok: #2F7D4F;
+  --state-stale: #9A6A00;
+  --state-failed: #B3261E;
+  --state-interrupted: #696F79;
+  --state-never-run: #858D99;
+
+  /* data palette (Okabe–Ito) */
+  --data-1: #E69F00;
+  --data-2: #56B4E9;
+  --data-3: #009E73;
+  --data-4: #F0E442;
+  --data-5: #0072B2;
+  --data-6: #D55E00;
+  --data-7: #CC79A7;
+  --data-8: #000000;
+  --data-seq-from: #E2F0EF;
+  --data-seq-to: #116A6A;
+
+  /* elevation */
+  --elev-flat: none;
+  --elev-overlay: 0 1px 2px rgba(16,20,26,.10), 0 8px 24px rgba(16,20,26,.14);
+}
+
+/* "Broadsheet Dark". Applies when the OS asks for dark and the document has not
+   pinned light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    /* neutral ramp */
+    --n0: #181D24;
+    --n1: #14181E;
+    --n2: #191E25;
+    --n3: #1F2530;
+    --n4: #2A313C;
+    --n5: #3A4350;
+    --n6: #59636F;
+    --n7: #7C8794;
+    --n8: #9AA4B0;
+    --n9: #B7C0CA;
+    --n10: #D6DCE3;
+    --n11: #EDF1F5;
+
+    /* semantic roles */
+    --app-bg: #0E1116;
+    --canvas: #14181E;
+    --surface: #191E25;
+    --overlay: #181D24;
+    --input: #1F2530;
+    --border: #2A313C;
+    --border-strong: #3A4350;
+    --rule-mid: #3A4350;
+    --rule-edge: #EDF1F5;
+    --text-disabled: #59636F;
+    --text-meta: #7C8794;
+    --text-label: #9AA4B0;
+    --text-secondary: #B7C0CA;
+    --text-body: #D6DCE3;
+    --text-heading: #EDF1F5;
+
+    /* accent */
+    --accent: #3FB0A8;
+    --accent-hover: #5AC4BC;
+    --accent-subtle: #12312F;
+
+    /* block state — also the gutter and state-rail colours */
+    --state-ok: #4CAF7A;
+    --state-stale: #D4A03C;
+    --state-failed: #F2726A;
+    --state-interrupted: #7C8794;
+    --state-never-run: #606A77;
+
+    /* data palette (Okabe–Ito) */
+    --data-1: #FFBB24;
+    --data-2: #8CCCF0;
+    --data-3: #00DBA0;
+    --data-4: #F4EC7B;
+    --data-5: #0099EF;
+    --data-6: #FF7B13;
+    --data-7: #DDA5C4;
+    --data-8: #EDF1F5;
+    --data-seq-from: #12312F;
+    --data-seq-to: #3FB0A8;
+
+    /* elevation */
+    --elev-flat: none;
+    --elev-overlay: 0 12px 32px rgba(0,0,0,.5);
+  }
+}
+
+/* An explicit choice wins over the OS in both directions. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* neutral ramp */
+  --n0: #181D24;
+  --n1: #14181E;
+  --n2: #191E25;
+  --n3: #1F2530;
+  --n4: #2A313C;
+  --n5: #3A4350;
+  --n6: #59636F;
+  --n7: #7C8794;
+  --n8: #9AA4B0;
+  --n9: #B7C0CA;
+  --n10: #D6DCE3;
+  --n11: #EDF1F5;
+
+  /* semantic roles */
+  --app-bg: #0E1116;
+  --canvas: #14181E;
+  --surface: #191E25;
+  --overlay: #181D24;
+  --input: #1F2530;
+  --border: #2A313C;
+  --border-strong: #3A4350;
+  --rule-mid: #3A4350;
+  --rule-edge: #EDF1F5;
+  --text-disabled: #59636F;
+  --text-meta: #7C8794;
+  --text-label: #9AA4B0;
+  --text-secondary: #B7C0CA;
+  --text-body: #D6DCE3;
+  --text-heading: #EDF1F5;
+
+  /* accent */
+  --accent: #3FB0A8;
+  --accent-hover: #5AC4BC;
+  --accent-subtle: #12312F;
+
+  /* block state — also the gutter and state-rail colours */
+  --state-ok: #4CAF7A;
+  --state-stale: #D4A03C;
+  --state-failed: #F2726A;
+  --state-interrupted: #7C8794;
+  --state-never-run: #606A77;
+
+  /* data palette (Okabe–Ito) */
+  --data-1: #FFBB24;
+  --data-2: #8CCCF0;
+  --data-3: #00DBA0;
+  --data-4: #F4EC7B;
+  --data-5: #0099EF;
+  --data-6: #FF7B13;
+  --data-7: #DDA5C4;
+  --data-8: #EDF1F5;
+  --data-seq-from: #12312F;
+  --data-seq-to: #3FB0A8;
+
+  /* elevation */
+  --elev-flat: none;
+  --elev-overlay: 0 12px 32px rgba(0,0,0,.5);
+}

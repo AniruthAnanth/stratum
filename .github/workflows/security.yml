@@ -1,0 +1,87 @@
+# Stratum — dependency and supply-chain hygiene. W22.
+#
+# ci.yml runs `cargo deny` on every PR; this workflow is the slower, scheduled
+# sweep that catches what a merge-time check cannot: advisories published
+# AFTER a dependency was merged, yanked crates, and drift in the npm tree. It
+# also stands guard over two release-security invariants that must hold even
+# when nobody is releasing:
+#
+#   - entitlements.plist never grows disable-library-validation (ADR-011, C27
+#     — the grep gate, in workflow form, alongside the `xtask dist check` and
+#     unit-test forms);
+#   - the never-steal file-association contract stays intact.
+#
+# This workflow never needs Stata, on any runner, in any job (spec §32).
+
+name: security
+
+on:
+  schedule:
+    - cron: "30 4 * * 1" # Mondays 04:30 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.lock"
+      - "deny.toml"
+      - "apps/desktop/pnpm-lock.yaml"
+      - "apps/desktop/src-tauri/entitlements.plist"
+      - "apps/desktop/src-tauri/tauri.*.conf.json"
+      - "packaging/**"
+      - ".github/workflows/security.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  advisories:
+    name: cargo deny (advisories, bans, licenses, sources)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with: { tool: cargo-deny }
+      - run: cargo deny check advisories bans licenses sources
+
+  audit:
+    name: cargo audit (RustSec, including yanked)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with: { tool: cargo-audit }
+      - run: cargo audit --deny warnings
+
+  npm:
+    name: pnpm audit (frontend tree)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.15.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: apps/desktop/pnpm-lock.yaml }
+      - working-directory: apps/desktop
+        run: |
+          pnpm install --frozen-lockfile
+          # High and above blocks; moderate is reported in the log. A desktop
+          # webview's npm tree is build-time only, but the build runs on dev
+          # machines — poisoned build tooling is the actual threat here.
+          pnpm audit --audit-level high
+
+  release-invariants:
+    name: packaging security invariants (ADR-011)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with: { key: security-invariants }
+      # The grep gate from the W22 acceptance, standing even between releases:
+      # no disable-library-validation, no stolen file-association defaults,
+      # per-OS bundle configs intact. Implemented in xtask so the same check
+      # runs locally, in package.yml, and here.
+      - run: cargo run -p xtask -- dist check

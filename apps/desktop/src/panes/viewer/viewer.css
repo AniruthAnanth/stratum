@@ -1,0 +1,103 @@
+/* Viewer — 06 §9.2's log surface with a topic bar on top of it.
+ *
+ * Nothing here styles the body: the scrollback owns its own pixels (`log.css`)
+ * so that a help topic and a `regress` table are set in the same face at the
+ * same measure, which is the point of there being one log component.
+ */
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.viewer__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.viewer__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: none;
+  background: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--text-meta);
+  font-size: 9px;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+}
+
+.viewer__button:hover:not(:disabled) {
+  color: var(--text-body);
+  background: var(--surface);
+}
+
+.viewer__button:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.viewer__button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.viewer__topic {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+  height: var(--h-toolbar);
+  padding: 0 var(--sp-8);
+  border-bottom: var(--hairline) solid var(--border);
+  background: var(--surface);
+  color: var(--text-meta);
+}
+
+.viewer__query {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--input);
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  padding: var(--sp-2) var(--sp-6);
+}
+
+.viewer__query:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* The command that produced what is on screen, spelled as the user could have
+   typed it. This is the Viewer's own version of the `. ` echo. */
+.viewer__current {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-8);
+  border-bottom: var(--hairline) solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  color: var(--text-meta);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}

@@ -1,0 +1,91 @@
+/* Typography — 06 §14.3.
+ *
+ * Six sizes, and a hard rule that no pane shows more than three. The classes
+ * below are the only sanctioned way to set a size; a component that reaches for
+ * `font-size: 14px` has left the scale, and there is no 14.
+ */
+
+:root {
+  /* 06 §14.3 / §17: the whole scale is expressed against a root multiplier so
+     OS text-size scaling moves everything together and column alignment
+     survives it. `--fs-root` is set by `boot/theme.ts` from the user setting. */
+  --fs-root: 1;
+}
+
+.t-micro {
+  font-size: calc(var(--fs-micro) * var(--fs-root));
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.t-small {
+  font-size: calc(var(--fs-small) * var(--fs-root));
+  line-height: var(--lh-small);
+}
+
+.t-body {
+  font-size: calc(var(--fs-body) * var(--fs-root));
+  line-height: var(--lh-body);
+}
+
+.t-mid {
+  font-family: var(--font-serif);
+  font-size: calc(var(--fs-mid) * var(--fs-root));
+  line-height: var(--lh-mid);
+  max-width: 68ch; /* 06 §14.3: rendered narrative measure */
+}
+
+.t-large {
+  font-size: calc(var(--fs-large) * var(--fs-root));
+  line-height: var(--lh-large);
+}
+
+/* Code and all classic output. The line height is locked at 1.54 (06 §14.3);
+   the size is the user's, clamped 11-18 by `state/settings.ts`. */
+.t-code,
+code,
+pre,
+.classic {
+  font-family: var(--font-mono);
+  font-size: var(--code-size, var(--fs-code));
+  line-height: 1.54;
+  font-variant-numeric: var(--font-numeric);
+}
+
+/* 06 §14.3: weights 400, 500, 600 only. No 700 anywhere - bold headings are a
+   dashboard tell and they fight monospace output. */
+.w-regular {
+  font-weight: var(--fw-regular);
+}
+.w-medium {
+  font-weight: var(--fw-medium);
+}
+.w-semibold {
+  font-weight: var(--fw-semibold);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.text-meta {
+  color: var(--text-meta);
+}
+.text-label {
+  color: var(--text-label);
+}
+.text-secondary {
+  color: var(--text-secondary);
+}
+.text-heading {
+  color: var(--text-heading);
+}

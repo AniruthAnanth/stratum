@@ -1,0 +1,94 @@
+# Deterministic intelligence — ARCHITECTURE C16, design 07 §§0–10.
+#
+# WHAT THIS CRATE IS. Design 07 §0: "the majority of the perceived intelligence
+# of this product" is not a language-model problem. "Did you mean `income`?" is
+# edit distance over a live 74-element string vector; it returns in microseconds,
+# offline, free, with no failure mode, and it is CORRECT rather than PLAUSIBLE.
+# Everything here works with no API key, no network and no configuration.
+#
+# THE DEPENDENCY LIST IS THE ENFORCEMENT. `cargo xtask layering` asserts that
+# this crate reaches no network crate, no async runtime, no platform crate, and
+# none of `tokio` / `time` / `memmap2` / a locale crate, resolving the graph for
+# `wasm32-unknown-unknown` rather than reading this file. Everything below is
+# either a path dependency inside the wasm-clean set or a leaf with no host
+# surface at all.
+#
+# WHY THERE IS NO `strsim` AND NO `nucleo-matcher`. Design 07 §1.1 lists both.
+# Neither is in the workspace dependency table, which is W00's file and not ours
+# to edit, and a member crate reaching outside that table is how a workspace ends
+# up resolving two versions of one crate (the reason `stratum-parse` records for
+# not taking `compact_str`). Both are small, exactly specified algorithms whose
+# *numeric* behaviour is load-bearing here — §6.1 gates on
+# `jaro_winkler >= 0.86` and on a `top - second >= 0.08` margin, so the scoring
+# function is part of the contract, not an implementation detail. They are
+# implemented in `src/similarity.rs` against the published definitions and unit
+# tested against worked examples. This is the one place in the crate where
+# writing it ourselves is cheaper than depending on it.
+
+[package]
+name = "stratum-intel"
+description = "Stratum's deterministic intelligence: completion, did-you-mean, lints, reproducibility checks and the auto-comment safety proof. No LLM, no network, no configuration."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+# Deliberately empty. `cargo xtask layering --wasm-build` checks this crate with
+# `--no-default-features`, so anything that only compiles behind a default
+# feature would not be checked for wasm at all.
+default = []
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+# `default-features = false` is load-bearing: `stratum-core`'s default feature
+# pulls `rayon`, and the wasm check does not reach into a dependency's defaults.
+stratum-core = { path = "../stratum-core", default-features = false }
+stratum-parse = { path = "../stratum-parse" }
+stratum-effects = { path = "../stratum-effects" }
+serde = { workspace = true }
+camino = { workspace = true }
+thiserror = { workspace = true }
+# Set/map on the analysis paths. NEVER iterated where the order can reach
+# output — every ordering in this crate is an explicit sort.
+rustc-hash = { workspace = true }
+# `anchor_hash` (07 §8.0) is blake3 over the exact bytes of the anchor line as
+# they were sent. Same hash as `CodeHash`/`TextHash`; a second one would be a
+# second set of collision assumptions for the same job.
+blake3 = { workspace = true }
+
+[dev-dependencies]
+# The §8.5 / A15 property tests. The safety guarantee is only real if it is
+# fuzzed.
+proptest = { workspace = true }
+pretty_assertions = { workspace = true }
+criterion = { workspace = true }
+serde_json = { workspace = true }
+# `data/rc_table.toml` is the AUTHORED source and `diagnose::rc_table` is the
+# compiled table the shipping build reads. `tests/repro.rs` parses the TOML and
+# asserts the two agree, so the data file cannot drift from the code without a
+# red test — and the keystroke path still pays zero parse cost.
+toml = { workspace = true }
+
+[[bench]]
+name = "complete"
+harness = false
+
+[lints.rust]
+# The whole crate is string and index arithmetic over `&str`. An `unsafe` block
+# here would buy a few percent on a path that is already microseconds and cost
+# the ability to trust the auto-comment proof.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+# Design 07 §1: "`intel` carries `#![forbid(unsafe_code)]` and
+# `#![deny(clippy::unwrap_used)]`". A panic inside the keystroke path takes the
+# editor's wasm module down with it.
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "warn"

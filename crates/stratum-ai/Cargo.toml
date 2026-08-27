@@ -1,0 +1,96 @@
+# The LLM stack — 07, ARCHITECTURE §5 (`stratum-ai`), ADR-012.
+#
+# ARCHITECTURE §5 gives this crate exactly two workspace dependencies: `proto`
+# (the wire types, and `SessionIntrospect` — A5) and `platform` (traits only, no
+# OS deps, for `&dyn CredentialStore` — C17). It links neither the engine nor the
+# parser: `stratum-desktop` links this crate and C24 forbids the desktop from
+# reaching `stratum-exec`/`stratum-parse`. The auto-comment PROOF therefore does
+# not live here — `stratum-intel::comment_safety` owns it (W20) and W26's
+# `EditGate` runs it. What lives here is the request that produces a comment
+# PROPOSAL, which is inert text until something else verifies it.
+#
+# ESCALATION, `reqwest` (see also the return note for W21). The workspace table
+# in the root `Cargo.toml` declares
+#   reqwest = { ..., features = ["json", "rustls", "webpki-roots", "stream", "http2"] }
+# and **`webpki-roots` is not a feature of reqwest 0.13** — `cargo metadata`
+# fails outright with "the package `stratum-ai` depends on `reqwest`, with
+# features: `webpki-roots` but `reqwest` does not have these features". Nobody
+# had hit it because this is the first and only crate `deny.toml` lets take
+# reqwest. The version is therefore pinned at this use site, exactly as
+# `stratum-platform` pins `async-trait`/`secrecy` and for the same reason, and
+# the feature list is the one 07 §1.1 actually asks for: reqwest 0.13's `rustls`
+# feature pulls `rustls-platform-verifier`, which is the crate 07 §1.1 names for
+# the TLS-intercepting-proxy case at universities and hospitals. Root
+# `Cargo.toml` belongs to W00; when the `webpki-roots` entry is dropped there,
+# this line becomes `{ workspace = true }` in one edit.
+#
+# Likewise `tokio-util` (the one `CancellationToken` for the whole stack, 07
+# §2.7), `futures`, `async-trait` and `secrecy` are not in the workspace table at
+# all and are pinned here.
+#
+# NOT here, deliberately:
+#   * `time` — `deny.toml` lists this crate nowhere in `time`'s `wrappers`, and
+#     A2 makes every timestamp a `u64` of Unix milliseconds. The audit log's
+#     `at_unix_ms` is exactly that; rendering it for a human is the desktop's job.
+#   * `keyring` — banned outright (C17). Keys arrive through
+#     `Platform::credentials()`.
+#   * `rusqlite` — C18 chose redb everywhere, and A4 gives this crate `ui.redb`.
+#   * `moka` — 07 §11.3 wanted it for the in-memory response cache. A bounded
+#     256-entry map behind a `Mutex` with an explicit TTL sweep is ~90 lines and
+#     no transitive tree; the cache is consulted once per user click, so the
+#     lock-free read path moka buys is worth nothing here.
+
+[package]
+name = "stratum-ai"
+description = "Stratum's optional LLM stack: provider abstraction, the privacy-tiered context packer, tasks, and the AI service."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-platform = { path = "../stratum-platform" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+camino = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+blake3 = { workspace = true }
+tracing = { workspace = true }
+redb = { workspace = true }
+tokio = { workspace = true }
+
+# See the escalation note above.
+reqwest = { version = "0.13", default-features = false, features = [
+  "json",
+  "rustls",
+  "stream",
+  "http2",
+] }
+# `Response::bytes_stream()` yields `bytes::Bytes` and reqwest re-exports no
+# alias for it, so the streaming state machine has to be able to name the type.
+# Already in the tree via hyper; this only makes it nameable.
+bytes = "1"
+tokio-util = { version = "0.7", features = ["rt"] }
+futures = "0.3"
+async-trait = "0.1"
+secrecy = "0.10"
+
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "net"] }
+
+[lints.rust]
+# A crate that handles API keys and builds network requests has no business
+# containing an unsafe block.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

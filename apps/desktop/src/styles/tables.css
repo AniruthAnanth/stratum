@@ -1,0 +1,88 @@
+/* Result tables - 06 §14.8.
+ *
+ * Four rules applied without exception, and they are why an inline card, the
+ * Results scrollback, the comparison view and exported LaTeX read as one system:
+ *
+ *   1. the same rule weights: --rule-edge top and bottom, --rule-mid interior;
+ *   2. the same numeral font and the same decimal alignment, derived from the
+ *      Stata display format;
+ *   3. colour never encodes "kind of result" - only state and data;
+ *   4. no shadow, no radius above 3px, no coloured header bar.
+ */
+
+.stat-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-body);
+  width: max-content;
+  max-width: 100%;
+}
+
+/* Booktabs: a heavy rule above and below the table, a light one under the
+   header. No vertical rules at all - a journal table has none. */
+.stat-table > thead > tr:first-child > * {
+  border-top: 1px solid var(--rule-edge);
+}
+.stat-table > thead > tr:last-child > * {
+  border-bottom: 1px solid var(--rule-mid);
+}
+.stat-table > tbody > tr:last-child > * {
+  border-bottom: 1px solid var(--rule-edge);
+}
+
+.stat-table th,
+.stat-table td {
+  padding: 2px var(--sp-8);
+  text-align: right;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.stat-table th {
+  font-weight: var(--fw-medium);
+  color: var(--text-label);
+}
+
+/* The first column is the label column: names, not numbers. */
+.stat-table th:first-child,
+.stat-table td:first-child {
+  text-align: left;
+  font-family: var(--font-sans);
+}
+
+/* 06 §14.3: decimal alignment is `text-align: right` plus a per-column ch
+   padding computed in JS from the Stata display format. Never a
+   `text-align: "."` hack, and never per-cell measurement - the padding lands
+   here as a custom property the renderer sets on the column. */
+.stat-table [data-numeric] {
+  padding-right: calc(var(--sp-8) + var(--decimal-pad, 0ch));
+}
+
+/* A cell the engine reported as missing. Rendered as Stata renders it, in meta
+   ink so a column of dots does not read as data. */
+.stat-table [data-missing] {
+  color: var(--text-meta);
+}
+
+/* On >=2x displays a journal-weight interior rule is half a pixel. A 1px border
+   cannot be halved, so the rule is a scaled pseudo-element instead - the only
+   way to get it crisp rather than grey and blurred. */
+@media (min-resolution: 2dppx) {
+  .stat-table > thead > tr:last-child > * {
+    border-bottom: 0;
+    position: relative;
+  }
+  .stat-table > thead > tr:last-child > *::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 1px;
+    background: var(--rule-mid);
+    transform: scaleY(0.5);
+    transform-origin: bottom;
+  }
+}

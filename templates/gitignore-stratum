@@ -1,0 +1,52 @@
+# Stratum — suggested .gitignore entries for an analysis project.
+#
+# Written by `stratum init`. Everything below is appended to your existing
+# .gitignore; nothing here is required for Stratum to work.
+
+# ---------------------------------------------------------------------------
+# Volatile cache. Never commit this.
+# ---------------------------------------------------------------------------
+# .stratum/ holds cached result blobs, rendered graphs, dataset state snapshots,
+# the ado index, AI transcripts and execution timestamps. It is machine-local,
+# large, non-deterministic and fully regenerable — deleting it costs you nothing
+# but the time to re-run. Stratum also writes .stratum/.gitignore containing `*`
+# when it first creates the directory, so this line is belt and braces.
+.stratum/
+
+# ---------------------------------------------------------------------------
+# Sidecars. Read this before uncommenting.
+# ---------------------------------------------------------------------------
+# `<file>.do.workspace` is the DURABLE half of the sidecar: section names and
+# order, cell markers, narrative region boundaries, collapse intent, pinned model
+# comparisons, and the per-file inline-results mode. It contains no timestamps,
+# no durations, no execution ids and no output, so it does not churn when you run
+# your code. It is small (typically under 4 KB), JSON with sorted keys and LF
+# endings, and it diffs cleanly.
+#
+# We recommend COMMITTING it. Section names are part of the document — a
+# collaborator who clones without the sidecar gets your analysis but loses its
+# structure. Nothing about execution output ever enters version control either
+# way, and deleting the sidecar loses only layout, never analysis.
+#
+# Uncomment the next line only if you would rather keep the repository to .do
+# files alone.
+# *.do.workspace
+
+# ---------------------------------------------------------------------------
+# Stata and analysis by-products
+# ---------------------------------------------------------------------------
+*.smcl
+*.stswp
+*.log.bak
+
+# Uncomment if your logs are reproducible output rather than a record you keep.
+# *.log
+
+# ---------------------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------------------
+# Uncomment whichever of these describes data you must not publish. Raw data
+# under an access agreement does not belong in git even when it is small.
+# data/raw/
+# *.dta
+# *.csv

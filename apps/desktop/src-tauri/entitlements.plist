@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements for the packaged Stratum.app (W22, ADR-011).
+
+  Minimal, and each entry justified:
+
+  - com.apple.security.cs.allow-jit: WKWebView's JavaScript JIT. Without it
+    the webview silently falls back to the interpreter and the editor becomes
+    visibly laggy on large files.
+
+  DELIBERATELY ABSENT (ARCHITECTURE C27, ADR-011, W22 acceptance):
+  - com.apple.security.cs.disable-library-validation — nothing in v1 dlopens a
+    third-party binary; Stata plugin support is a v2 feature behind a separate
+    hardened-runtime variant. A grep gate in `cargo xtask dist check` and in
+    package.yml asserts this key never appears here.
+  - com.apple.security.cs.allow-unsigned-executable-memory — broader than
+    allow-jit, weakens the hardened runtime for no benefit.
+  - com.apple.security.automation.apple-events — only the difftest build drives
+    another app, and that build is never distributed.
+  - com.apple.security.app-sandbox — Developer ID distribution, not App Store;
+    a statistics IDE that cannot read an arbitrary .dta path is useless.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+</dict>
+</plist>

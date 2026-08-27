@@ -1,0 +1,83 @@
+# Estimated prices, US dollars per million tokens.
+#
+# RATES AS SHIPPED ON 2026-08-22. VERIFY WITH YOUR PROVIDER.
+#
+# This file is shipped alongside the binary and is user-editable: a university
+# with negotiated rates, a gateway that marks up, or a provider that changed its
+# prices after this build all need one edit here and no new release. Settings
+# points at the copy it is reading.
+#
+# WE DO NOT FETCH A LIVE PRICING ENDPOINT (07 §11.1). That would be a network
+# call made before the user has consented to any network activity — on first
+# launch, in a room where the answer to "does this software phone home" has to be
+# "no". A stale number in a cost estimate is a smaller problem than a packet.
+#
+# Every figure here is therefore an ESTIMATE and the UI says so. It drives the
+# session footer, the $10 passive notification and the optional monthly cap; it
+# is never presented as a bill.
+#
+# `cache_read_per_mtok` and `cache_write_per_mtok` are omitted where a provider
+# has no prompt cache, and default to the input rate where a provider has one and
+# we do not know its multipliers — over-estimating a cost is the safe direction.
+
+version = 1
+as_of = "2026-08-22"
+
+# --- Anthropic --------------------------------------------------------------
+# The default on every surface is claude-opus-5 (ADR D-AI-10); we do not silently
+# downgrade the user's model. The Fast profile is opt-in and maps three
+# latency-sensitive surfaces to claude-haiku-4-5.
+
+[anthropic."claude-opus-5"]
+input_per_mtok = 5.00
+output_per_mtok = 25.00
+cache_write_per_mtok = 6.25
+cache_read_per_mtok = 0.50
+
+[anthropic."claude-opus-4-5"]
+input_per_mtok = 5.00
+output_per_mtok = 25.00
+cache_write_per_mtok = 6.25
+cache_read_per_mtok = 0.50
+
+[anthropic."claude-sonnet-4-5"]
+input_per_mtok = 3.00
+output_per_mtok = 15.00
+cache_write_per_mtok = 3.75
+cache_read_per_mtok = 0.30
+
+[anthropic."claude-haiku-4-5"]
+input_per_mtok = 1.00
+output_per_mtok = 5.00
+cache_write_per_mtok = 1.25
+cache_read_per_mtok = 0.10
+
+# A model this file has never heard of — a new release, or a private deployment.
+# Priced at the most expensive row above rather than at zero: a cost estimate
+# that silently reads "$0.00" for an unknown model is worse than no estimate,
+# because the user believes it.
+[anthropic."*"]
+input_per_mtok = 5.00
+output_per_mtok = 25.00
+cache_write_per_mtok = 6.25
+cache_read_per_mtok = 0.50
+
+# --- OpenAI-compatible ------------------------------------------------------
+# One row, because this backend is an escape hatch: Azure, OpenRouter, Together,
+# Fireworks, vLLM, llama.cpp, LM Studio and every institutional gateway speak it,
+# and we cannot know which one the user pointed at. Anyone who cares about the
+# number edits this file; the shipped value is a placeholder that is visibly a
+# placeholder rather than a wrong-but-plausible price.
+
+[openai_compat."*"]
+input_per_mtok = 0.00
+output_per_mtok = 0.00
+estimate_unavailable = true
+
+# --- Ollama -----------------------------------------------------------------
+# Local inference on the user's own hardware. Zero is not a placeholder here; it
+# is the price.
+
+[ollama."*"]
+input_per_mtok = 0.00
+output_per_mtok = 0.00

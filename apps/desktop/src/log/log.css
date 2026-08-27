@@ -1,0 +1,123 @@
+/* The scrollback — 06 §9.2, §14.3, §15.2.
+ *
+ * Fixed line height, `white-space: pre`, no wrapping by default, horizontal
+ * scroll like Stata. Every colour is a token; the `.smcl--*` inks come from
+ * `renderers/log/log.css`, which this view imports rather than restates.
+ *
+ * The scrollbar is ours. There is no spacer div and no `overflow-y` on the
+ * rows: 5 M lines × 20 px is 100 M px and browsers clamp near 33.5 M, so the
+ * rows element holds at most `viewport + 1` lines and is translated into place.
+ */
+
+.logv {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  background: var(--canvas);
+}
+
+/* Ten zeros, measured once, so pointer-x → column is exact on a monospace log.
+   Off-screen rather than `display: none`, which has no measurable box. */
+.logv__probe {
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  white-space: pre;
+  pointer-events: none;
+}
+
+.logv__viewport {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  outline-offset: -2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-body);
+  tab-size: 8;
+  cursor: text;
+}
+
+.logv__viewport:focus-visible {
+  outline: 1px solid var(--accent);
+}
+
+.logv__rows {
+  will-change: transform;
+  /* Content wider than the viewport scrolls horizontally as one block, so a
+     long `regress` table does not shear line by line. */
+  min-width: max-content;
+}
+
+.logv__line {
+  white-space: pre;
+  height: var(--lh-code);
+}
+
+[data-wrap="on"] .logv__line {
+  white-space: pre-wrap;
+  height: auto;
+}
+
+/* A line still in flight. Not a skeleton and not a spinner: a jump of 10 000
+   lines has 16 ms to paint (06 §15.1) and the only thing that fits is nothing. */
+.logv__line[data-placeholder] {
+  color: var(--text-meta);
+}
+
+.logv__gap {
+  display: inline-block;
+}
+
+.logv__line[data-selected] {
+  background: var(--accent-subtle);
+}
+
+/* Search hits. Colour is never the only channel (06 §17): the current hit also
+   carries a hairline underline, so it is distinguishable in a contrast theme. */
+.logv__viewport [data-hit] {
+  background: var(--accent-subtle);
+}
+
+.logv__viewport [data-hit-current] {
+  background: var(--accent);
+  color: var(--canvas);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---- the synthetic scrollbar (06 §15.2) --------------------------------- */
+
+.logv__track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 10px;
+  background: var(--surface);
+  border-left: var(--hairline) solid var(--border);
+}
+
+.logv__thumb {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 6px;
+  border-radius: var(--radius-control);
+  background: var(--border-strong);
+}
+
+.logv__thumb:hover {
+  background: var(--text-meta);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logv__thumb {
+    transition: background var(--motion-state) var(--motion-state-easing);
+  }
+}

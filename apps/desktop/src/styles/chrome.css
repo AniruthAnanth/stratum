@@ -1,0 +1,186 @@
+/* Application chrome - 06 §14.4.
+ *
+ * Fixed metrics, all from tokens: pane header 28, toolbar 32, top bar 38,
+ * status bar 22, gutter 18. They are fixed because density is the point; a
+ * chrome row that grows with its content is how a 22px grid becomes a 48px one.
+ */
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: var(--h-top-bar);
+  padding: 0 var(--sp-8);
+  gap: var(--sp-8);
+  background: var(--surface);
+  border-bottom: var(--hairline) solid var(--border);
+  /* macOS ships `titleBarStyle: Overlay` (06 §16.2), so the traffic lights sit
+     inside our own bar and the left inset is theirs. */
+  -webkit-app-region: drag;
+}
+
+.top-bar--compact {
+  height: var(--h-toolbar);
+}
+
+.top-bar--auto-hide {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  transform: translateY(-100%);
+  transition: transform var(--motion-state) var(--motion-state-easing);
+}
+
+.top-bar--auto-hide[data-revealed="true"] {
+  transform: none;
+}
+
+.top-bar > * {
+  -webkit-app-region: no-drag;
+}
+
+.top-bar__traffic-inset {
+  width: 72px;
+  flex: 0 0 auto;
+}
+
+.top-bar__spacer {
+  flex: 1 1 auto;
+}
+
+/* The state readout. 06 §14.2: "a thing no code editor has, and it is the first
+   thing you see." Micro size, meta ink, tabular figures, separated by middots. */
+.state-readout {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+
+.state-readout__sep {
+  color: var(--text-disabled);
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: var(--h-status-bar);
+  padding: 0 var(--sp-8);
+  gap: var(--sp-8);
+  background: var(--surface);
+  border-top: var(--hairline) solid var(--border);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-meta);
+  /* 06 §14.2: no blue status bar. It is the same surface as every other chrome
+     row, distinguished by a hairline and nothing else. */
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  height: var(--h-pane-header);
+  padding: 0 var(--sp-8);
+  gap: var(--sp-6);
+  background: var(--surface);
+  border-bottom: var(--hairline) solid var(--border);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+
+.pane-host {
+  height: 100%;
+  overflow: hidden;
+  background: var(--canvas);
+}
+
+.pane-host--unknown,
+.pane-host[data-unregistered] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-disabled);
+  font-size: var(--fs-small);
+}
+
+.pane-host[data-unregistered]::after {
+  content: attr(data-pane);
+  font-family: var(--font-mono);
+}
+
+/* 06 §14.4: elevation has exactly two levels. Flat is everything; overlay is
+   menus, the palette, tooltips and popovers, and nothing else. */
+.overlay {
+  background: var(--overlay);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  box-shadow: var(--elev-overlay);
+}
+
+/* The running hairline - 06 §14.6. Not a spinner: a 1px rule that fills along
+   the block's left edge, and an indeterminate shuttle on the same rule. */
+.run-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w-state-rail);
+  height: 100%;
+  background: var(--state-never-run);
+}
+
+.run-rail[data-state="ok"] {
+  background: var(--state-ok);
+}
+.run-rail[data-state="stale"] {
+  background: var(--state-stale);
+}
+.run-rail[data-state="failed"] {
+  background: var(--state-failed);
+}
+.run-rail[data-state="interrupted"] {
+  background: var(--state-interrupted);
+}
+
+.run-rail[data-state="running"] {
+  background: linear-gradient(var(--accent), var(--accent)) no-repeat;
+  background-size: 100% var(--run-progress, 50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The hairline freezes at 50% rather than disappearing: the user still needs
+     to know something is running. */
+  .run-rail[data-state="running"] {
+    background-size: 100% 50%;
+  }
+}
+
+/* The three rows of the main shell. The dock is the only one that flexes. */
+.shell__dock {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  background: var(--app-bg);
+}
+
+.shell__pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.pane-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  padding: var(--sp-16);
+  background: var(--canvas);
+}

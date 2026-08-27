@@ -1,0 +1,127 @@
+{
+  "schema": 3,
+  "id": "classic",
+  "name": "Classic Stata",
+  "_source": "docs/design/06-ui-architecture.md §8.3 — Stata 18's Widescreen layout: History left 260, Results centre with Command beneath it, Variables over Properties right 300 at 0.55/0.45. `commandbar` is the Command pane; it is the one dock component that is not a PaneId, because CONTRACTS §12's PaneId list does not name it and the command bar exists in every layout under `defaults.commandBar`.",
+  "chrome": {
+    "topBar": "compact",
+    "statusBar": true
+  },
+  "defaults": {
+    "inlineResults": "off",
+    "docView": false,
+    "commandBar": "pane",
+    "theme": "system"
+  },
+  "windows": [
+    {
+      "role": "main",
+      "label": "main",
+      "dock": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": ["history"],
+                  "activeView": "history",
+                  "id": "3"
+                },
+                "size": 260
+              },
+              {
+                "type": "branch",
+                "data": [
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": ["results"],
+                      "activeView": "results",
+                      "id": "1"
+                    },
+                    "size": 640
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": ["commandbar"],
+                      "activeView": "commandbar",
+                      "id": "2"
+                    },
+                    "size": 100
+                  }
+                ],
+                "size": 720
+              },
+              {
+                "type": "branch",
+                "data": [
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": ["variables"],
+                      "activeView": "variables",
+                      "id": "4"
+                    },
+                    "size": 407
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": ["properties"],
+                      "activeView": "properties",
+                      "id": "5"
+                    },
+                    "size": 333
+                  }
+                ],
+                "size": 300
+              }
+            ],
+            "size": 740
+          },
+          "width": 1280,
+          "height": 740,
+          "orientation": "HORIZONTAL"
+        },
+        "panels": {
+          "results": {
+            "id": "results",
+            "contentComponent": "results",
+            "title": "Results"
+          },
+          "commandbar": {
+            "id": "commandbar",
+            "contentComponent": "commandbar",
+            "title": "Command"
+          },
+          "history": {
+            "id": "history",
+            "contentComponent": "history",
+            "title": "History"
+          },
+          "variables": {
+            "id": "variables",
+            "contentComponent": "variables",
+            "title": "Variables"
+          },
+          "properties": {
+            "id": "properties",
+            "contentComponent": "properties",
+            "title": "Properties"
+          }
+        },
+        "activeGroup": "5"
+      }
+    }
+  ],
+  "panes": {
+    "history": {
+      "columns": ["command", "rc"]
+    },
+    "variables": {},
+    "properties": {}
+  }
+}

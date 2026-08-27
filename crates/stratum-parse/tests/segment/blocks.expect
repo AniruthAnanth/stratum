@@ -1,0 +1,9 @@
+1..3	Brace/Foreach         	cr       	canonical=foreach
+4..6	Brace/Forvalues       	cr       	canonical=forvalues
+7..15	Brace/IfElseChain     	cr       
+16..18	Brace/Capture         	cr       	canonical=capture
+19..21	Brace/Quietly         	cr       	canonical=quietly
+22..24	Brace/Anonymous       	cr       
+25..27	Brace/Forvalues       	cr       	canonical=forvalues
+28..32	Brace/IfElseChain     	cr       
+33..35	Brace/While           	cr       	canonical=while

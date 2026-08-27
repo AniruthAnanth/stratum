@@ -1,0 +1,113 @@
+/* Model comparison — 06 §7, §14.8.
+ *
+ * The same rule weights, numerals and alignment as an inline card: a comparison
+ * is a result surface, so it reads as the same object.
+ */
+
+.cmp {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--canvas);
+}
+
+.cmp__scroll {
+  overflow: auto;
+  padding: var(--sp-12);
+}
+
+.cmp__empty {
+  margin: 0;
+  padding: var(--sp-24);
+  color: var(--text-meta);
+  font-size: var(--fs-body);
+}
+
+.cmp__table th[scope="col"] {
+  display: table-cell;
+  text-align: right;
+  vertical-align: bottom;
+}
+
+.cmp__label {
+  display: block;
+  color: var(--text-meta);
+  font-size: var(--fs-micro);
+}
+
+.cmp__model {
+  display: block;
+  font-family: var(--font-mono);
+  color: var(--text-heading);
+}
+
+.cmp__depvar {
+  display: block;
+  font-family: var(--font-mono);
+  color: var(--text-meta);
+  font-size: var(--fs-micro);
+}
+
+.cmp__table th[scope="row"] {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-weight: var(--fw-regular);
+  color: var(--text-body);
+}
+
+.cmp__b {
+  display: block;
+  color: var(--text-heading);
+}
+
+/* Standard errors under the coefficient, in parentheses (06 §7). */
+.cmp__se {
+  display: block;
+  color: var(--text-meta);
+  font-size: var(--fs-micro);
+}
+
+.cmp__table td[data-note] {
+  color: var(--text-meta);
+}
+
+.cmp__footer-row > * {
+  border-top: 1px solid var(--rule-mid);
+}
+
+.cmp__footer-row + .cmp__footer-row > * {
+  border-top: 0;
+}
+
+/* Persistent, inside the table's own frame, exported with it. Never a toast. */
+.cmp__warning > td {
+  border-top: 1px solid var(--rule-edge);
+  text-align: left;
+  color: var(--state-stale);
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+}
+
+.cmp__legend {
+  display: flex;
+  gap: var(--sp-16);
+  align-items: baseline;
+  margin: 0;
+  padding: 0 var(--sp-12) var(--sp-12);
+  font-size: var(--fs-micro);
+  color: var(--text-meta);
+}
+
+.cmp__esttab {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  cursor: default;
+}
+
+.cmp__esttab:hover {
+  border-bottom-color: var(--accent);
+}

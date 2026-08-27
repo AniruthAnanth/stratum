@@ -1,0 +1,88 @@
+# The Linux implementation of the platform adapter layer (08 §5).
+#
+# `deny.toml` names this crate as the ONLY permitted wrapper for `zbus` and
+# `secret-service`. That ban list is the machine-checkable half of 08 §5.0 rule
+# 2; this manifest is the other half.
+#
+# WHY THERE IS NO `secret-service` AND NO `rfd` HERE, despite both being
+# sanctioned by `deny.toml`:
+#
+#   * `secret-service` v5.1.0 depends DIRECTLY on `zbus` v5. `deny.toml` says
+#     `{ name = "zbus", wrappers = ["stratum-platform-linux"] }`, and
+#     cargo-deny's `wrappers` is a check on the DIRECT dependent — so pulling
+#     `secret-service` in makes `cargo deny check bans` red on a rule this unit
+#     does not own. 08 §5.3 already specifies the alternative it wanted
+#     ("`zbus` + hand-rolled Secret Service client"), so `secretservice.rs` is
+#     that client. Measured with `cargo tree -i zbus --target
+#     x86_64-unknown-linux-gnu`.
+#   * `rfd` 0.17's Linux backends are `xdg-portal` (the same portal
+#     `portal.rs` already speaks, so useless as its fallback) and `gtk3`, which
+#     needs GTK headers through `gtk-sys`' build script and would make this
+#     crate impossible to `cargo check --target x86_64-unknown-linux-gnu` from
+#     a non-Linux machine. The GTK fallback is injected instead — see
+#     `dialogs::GtkFallback`, which follows `MenuSink`'s precedent for exactly
+#     the same reason: the application shell owns the widget toolkit.
+#
+# Unlike `stratum-platform-macos`, this crate is NOT `#![cfg(target_os =
+# "linux")]` as a whole. Everything that is pure policy — packaging detection,
+# menu conventions, `/proc` and cgroup parsing, the encrypted-file credential
+# store, the portal/GTK fallback decision, `mimeapps.list` resolution — compiles
+# and is TESTED on every host, because a crate that is an empty library on the
+# maintainer's machine proves none of its acceptance bullets there. Only the
+# modules that issue a Linux syscall or a D-Bus call are `cfg`-gated, and
+# `cargo check --target x86_64-unknown-linux-gnu` covers those.
+
+[package]
+name = "stratum-platform-linux"
+description = "Linux implementation of the Stratum platform adapter traits."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-platform = { path = "../stratum-platform" }
+# Re-declared rather than reached through `stratum-platform`: a crate must name
+# what it uses, and these appear in this crate's own signatures.
+camino = { workspace = true }
+async-trait = "0.1"
+# The `EncryptedFile` fallback of 08 §5.3, which is the answer whenever no
+# Secret Service is on the bus. Pure Rust, so it builds and is tested on every
+# host rather than only on Linux.
+aes-gcm = { workspace = true }
+argon2 = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# prctl(PR_SET_PDEATHSIG), setpgid, killpg, sched_getaffinity, setpriority.
+libc = "0.2"
+# 08 §5.3/§5.4: Secret Service, org.freedesktop.Notifications and the
+# FileChooser portal, all spoken directly. `async-io` (the default) rather than
+# the `tokio` feature on purpose: three of the four traits this crate implements
+# are SYNCHRONOUS, so they need `zbus::blocking`, and `zbus`'s blocking wrapper
+# built on tokio panics when it is called from inside a tokio runtime — which is
+# exactly where `stratum-desktop` calls it from. A crate whose Cargo.toml denies
+# `clippy::panic` must not import one.
+zbus = "5"
+# The portal deadline (`dialogs::PORTAL_DEADLINE`) and the notification-server
+# capability probe. Already in the graph via `zbus`'s `async-io` feature; naming
+# it here is the "a crate must name what it uses" rule, not an extra dependency.
+async-io = "2"
+futures-lite = "2"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+# The second W10 acceptance bullet: "`Unsupported` and `Cancelled` are
+# first-class returns everywhere; a test proves no impl `unwrap`s them." This is
+# the compiler half of that proof and `tests/no_unwrap.rs` is the textual half.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

@@ -1,0 +1,38 @@
+# Committed cargo configuration (08 §10.4).
+#
+# Nothing machine-specific belongs here. Linker overrides (mold, rust-lld) are
+# written into $CARGO_HOME/config.toml by scripts/dev-setup.sh instead:
+# committing `-fuse-ld=mold` breaks every contributor who has not installed mold,
+# which is worse than a slower link. `.cargo/config.local.toml` is gitignored for
+# personal overrides.
+
+# `x86-64-v2` (SSE4.2, POPCNT, CMPXCHG16B — universal since ~2009) is the floor
+# for every x86 slice, including the Intel half of the macOS universal binary,
+# because an Intel Mac may be a 2015 model. Anything above it (AVX2, AVX-512,
+# FMA) is reached through runtime dispatch in stratum-stats via
+# `is_x86_feature_detected!`. `target-cpu=native` is never used in a distributed
+# build: it produces binaries that SIGILL on an older laptop, and that failure is
+# invisible in CI because runners are modern.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=x86-64-v2"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-cpu=x86-64-v2"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "target-cpu=x86-64-v2"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "target-cpu=apple-m1"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = [] # baseline ARMv8 is enough
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = [] # ditto
+
+[alias]
+xtask = "run --package xtask --"
+
+[net]
+git-fetch-with-cli = true

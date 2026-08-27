@@ -1,0 +1,50 @@
+/* Graphs — 06 §6.7, §14.4.
+ *
+ * `contain: strict` so a graph's own layout can never reach the card, and the
+ * box is sized from `intrinsic_pt` before the bytes arrive.
+ */
+
+.graph {
+  margin: 0;
+  width: 100%;
+  contain: strict;
+  background: var(--canvas);
+}
+
+.graph__canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.graph__canvas > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.graph__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+}
+
+.graph__failed {
+  font-size: var(--fs-micro);
+  color: var(--state-failed);
+}
+
+.graph__caption {
+  display: flex;
+  gap: var(--sp-8);
+  padding-top: var(--sp-4);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-meta);
+}
+
+.graph__cmd {
+  font-family: var(--font-mono);
+}

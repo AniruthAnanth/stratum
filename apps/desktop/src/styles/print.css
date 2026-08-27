@@ -1,0 +1,55 @@
+/* Print - 06 §14.5.
+ *
+ * The app's themes are for a screen. A printed page has a different ground and a
+ * different ink, and `design/tokens.json` carries a dedicated `print` scheme for
+ * exactly this reason: "for export into a paper: pure white ground, black ink,
+ * unmodified Okabe-Ito. Never depends on the user's app theme."
+ *
+ * So printing does not reuse the light theme. It pins the neutral ends and drops
+ * every piece of chrome, because a printed result is a table, not a screenshot
+ * of an application.
+ */
+
+@media print {
+  :root {
+    color-scheme: light;
+    --canvas: #fff;
+    --surface: #fff;
+    --overlay: #fff;
+    --app-bg: #fff;
+    --text-body: #000;
+    --text-heading: #000;
+    --text-meta: #444;
+    --rule-edge: #000;
+    --rule-mid: #888;
+    --border: #ccc;
+  }
+
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+
+  .top-bar,
+  .status-bar,
+  .pane-header,
+  .pane-tab,
+  .dv-tabs-and-actions-container,
+  .run-rail {
+    display: none !important;
+  }
+
+  .stat-table {
+    page-break-inside: avoid;
+    width: 100%;
+  }
+
+  /* Containment hides off-screen content from the printer as well as from the
+     compositor, which would silently drop most of a long scrollback. */
+  .contain-offscreen {
+    content-visibility: visible;
+    contain: none;
+  }
+}

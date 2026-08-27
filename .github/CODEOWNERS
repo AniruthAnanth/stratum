@@ -1,0 +1,23 @@
+# Stratum CODEOWNERS (design 08 §11.1, W22).
+# Branch protection enforces review from an owner on the paths below — the
+# ones where a quiet edit can invalidate an oracle, ship an installer, or
+# change what CI is allowed to do.
+
+# The Stata goldens are recorded oracle behaviour; regenerating them needs a
+# Stata license and a documented capture. Never rubber-stamp a golden diff.
+/tests/difftest/cases/    @aniruth2207
+/tests/golden/            @aniruth2207
+
+# Installers, signing, file associations.
+/packaging/               @aniruth2207
+/apps/desktop/src-tauri/tauri.macos.conf.json    @aniruth2207
+/apps/desktop/src-tauri/tauri.windows.conf.json  @aniruth2207
+/apps/desktop/src-tauri/tauri.linux.conf.json    @aniruth2207
+/apps/desktop/src-tauri/entitlements.plist       @aniruth2207
+
+# Workflows decide what secrets a job can read.
+/.github/                 @aniruth2207
+
+# The spec is the source of truth; changing it is a product decision.
+/docs/PRODUCT_SPEC.md     @aniruth2207
+/docs/ownership.toml      @aniruth2207

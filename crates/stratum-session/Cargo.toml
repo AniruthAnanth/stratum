@@ -1,0 +1,81 @@
+# The engine-side `Session`, and the 16-item clean-state checklist that makes
+# spec §15's "interactive vs clean" distinction real rather than claimed.
+#
+# ARCHITECTURE §5 lists this crate's only permitted dependency as `runtime`, and
+# §7.7/A7 inverted the edge so that `session → runtime` and `exec → session`.
+# The four crates below `runtime` are named directly as well, because a `use`
+# has to name the crate a type is declared in: every one of them is already in
+# this crate's tree through `stratum-runtime`, so nothing here adds an edge to
+# the layering graph that `cargo xtask layering` did not already permit.
+#
+# Why each entry is load-bearing:
+#
+#   stratum-runtime `doc::{reconcile_regions, BlockIdAlloc, DocumentModel}` —
+#                   CONTRACTS §2's reconcile is normative and lives THERE. This
+#                   crate implements the trait and calls the algorithm; it does
+#                   not carry a `similar` dependency, so a second Myers diff is
+#                   not reachable from here.
+#   stratum-proto   SessionId/SessionEpoch/BlockId/DocumentId/BlockMap/
+#                   RegionSummary/SessionConfigWire/Taint are declared THERE and
+#                   nowhere else (A10).
+#   stratum-core    `Value` — the two types a Stata expression can have — is what
+#                   a scalar holds. A second two-arm enum here is the twin A10
+#                   bans. `default-features = false` keeps rayon out of a crate
+#                   that does no reductions.
+#   stratum-data    `FrameSet` IS checklist items 1 and 2. Frame lifecycle is
+#                   this crate's job per ARCHITECTURE §5; the frames themselves
+#                   are W02's. Default features ON, deliberately: turning
+#                   `parallel` off here would resolve `stratum-core` two
+#                   different ways in one build graph, which is precisely what
+#                   the hakari unification exists to prevent.
+#   stratum-parse   `MacroEnv` IS checklist item 3, and its `TempAlloc` IS item
+#                   14 — Stata's `tempvar`/`tempfile`/`tempname` all draw from
+#                   one `__000000` sequence, so one counter is the correct
+#                   model. `segment` is what `document.rs` calls.
+#   camino          `SessionConfigWire.cwd` is a `Utf8PathBuf`; a `PathBuf` here
+#                   would need a lossy conversion at the wire boundary.
+#   indexmap        `estimates dir` and `file open` handles print in creation
+#                   order.
+#   rustc-hash      scalar/matrix/global lookup on the execution path. Never
+#                   iterated where the order can reach output — the two places
+#                   that print are the IndexMaps above.
+#
+# NOT taken: `similar`. The reconcile algorithm is normative in CONTRACTS §2 and
+# lives in `stratum_runtime::doc`; a Myers diff in this crate would be the second
+# implementation that plan bullet forbids, and leaving the dependency out is what
+# makes writing one inconvenient enough to notice.
+
+[package]
+name = "stratum-session"
+description = "The engine-side Stratum session: clean-state construction, document model, ado path, frame lifecycle and clean-run isolation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-runtime = { path = "../stratum-runtime" }
+stratum-proto = { path = "../stratum-proto" }
+stratum-core = { path = "../stratum-core", default-features = false }
+stratum-data = { path = "../stratum-data" }
+stratum-parse = { path = "../stratum-parse" }
+camino = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+indexmap = { workspace = true }
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+
+[lints.rust]
+# Nothing in a session store justifies an unsafe block.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

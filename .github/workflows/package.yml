@@ -1,0 +1,448 @@
+# Stratum — release packaging. Design doc 08 §8.3, ADR-011, W22.
+#
+# Tags `v*`, manual dispatch, and a nightly cron. The nightly runs everything
+# except the stable publish, so signing/notarization breakage is found on a
+# schedule rather than during a release.
+#
+# SIGNING IS GATED, ABSENCE IS DESIGNED (ADR-011 §7.3): every signing and
+# notarization step conditions on its secret family being fully present, via
+# `cargo xtask sign status`. With no secrets the pipeline still produces
+# LAUNCHABLE artifacts — macOS ad-hoc signed, Windows unsigned — and the
+# Gatekeeper consequence is printed into the build log and the release notes
+# instead of being discovered by a user:
+#
+#   macOS ad-hoc: a browser-downloaded (quarantined) copy fails Gatekeeper with
+#   "Stratum is damaged and can't be opened". Recovery: System Settings →
+#   Privacy & Security → Open Anyway, or scripts/macos-unquarantine.sh. The
+#   .app.tar.gz is the pre-signing primary artifact because curl/tar downloads
+#   are never quarantined. Windows unsigned: SmartScreen "More info → Run
+#   anyway". Signing late earns no retroactive reputation — Developer ID and
+#   Trusted Signing are 1.0 release blockers.
+#
+# Secrets live in the `release` GitHub Environment with required reviewers;
+# fork PRs can never read them (this workflow does not run on pull_request at
+# all).
+#
+# This workflow never needs Stata, on any runner, in any job (spec §32);
+# scripts/check-topology.sh enforces that mechanically.
+
+name: package
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *" # nightly 03:00 UTC
+
+permissions:
+  contents: write # draft releases + artifact upload
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false # never cancel a half-published release
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ---------------------------------------------------------------------------
+  prepare:
+    name: prepare
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      channel: ${{ steps.meta.outputs.channel }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          else
+            v=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+            echo "version=${v}-nightly.$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+            echo "channel=nightly" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Changelog slice (git-cliff)
+        uses: taiki-e/install-action@v2
+        with: { tool: git-cliff }
+      - shell: bash
+        run: |
+          set -euo pipefail
+          git cliff --config .github/cliff.toml --latest --strip all > RELEASE_NOTES.md || \
+            echo "_no conventional commits found for this slice_" > RELEASE_NOTES.md
+          # The unsigned-era consequence belongs in the notes, not a FAQ
+          # (ADR-011 §7.3 point 1). The publish job prepends it when unsigned.
+      - uses: actions/upload-artifact@v4
+        with: { name: release-notes, path: RELEASE_NOTES.md }
+
+  # ---------------------------------------------------------------------------
+  bundle:
+    name: bundle (${{ matrix.name }})
+    needs: prepare
+    environment: release # secrets require reviewers; forks read nothing
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos
+            os: macos-15
+            target: universal-apple-darwin
+          - name: windows
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+          - name: linux
+            os: ubuntu-22.04 # pins glibc 2.35 so 22.04 users are not cut off
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Which signing credentials exist? (ADR-011 §7.3)
+        id: signing
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TS_ENDPOINT: ${{ secrets.AZURE_TS_ENDPOINT }}
+          AZURE_TS_ACCOUNT: ${{ secrets.AZURE_TS_ACCOUNT }}
+          AZURE_TS_CERT_PROFILE: ${{ secrets.AZURE_TS_CERT_PROFILE }}
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: cargo run -p xtask -- sign status --github-output
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.name }}-release
+          cache-on-failure: true
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.15.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: apps/desktop/pnpm-lock.yaml }
+
+      - name: Linux system deps (WebKitGTK 4.1)
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev patchelf
+
+      - name: CSP survives the per-OS config merge (ARCHITECTURE §8.12 / A21)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Tauri deep-merges tauri.<os>.conf.json over tauri.conf.json; jq's
+          # `*` is the same object-wise deep merge. Check the config the build
+          # will actually ship, per platform file, so a platform config cannot
+          # silently drop an asset scheme.
+          for os in macos windows linux; do
+            jq -s '.[0] * .[1]' apps/desktop/src-tauri/tauri.conf.json \
+              "apps/desktop/src-tauri/tauri.${os}.conf.json" > "/tmp/merged-${os}.json"
+            cargo run -p xtask -- csp-check --require --config "/tmp/merged-${os}.json"
+          done
+
+      - name: Packaging config invariants (never-steal, entitlements policy)
+        run: cargo run -p xtask -- dist check
+
+      - name: Build the stratum CLI (externalBin sidecar)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.name }}" == "macos" ]]; then
+            rustup target add aarch64-apple-darwin x86_64-apple-darwin
+            cargo build --release -p stratum-cli --target aarch64-apple-darwin
+            cargo build --release -p stratum-cli --target x86_64-apple-darwin
+            lipo -create -output /tmp/stratum-universal \
+              target/aarch64-apple-darwin/release/stratum \
+              target/x86_64-apple-darwin/release/stratum
+            cargo run -p xtask -- dist stage --cli /tmp/stratum-universal --triple universal-apple-darwin
+          else
+            cargo build --release -p stratum-cli
+            cargo run -p xtask -- dist stage
+          fi
+
+      - name: Import Developer ID certificate (ephemeral keychain)
+        if: matrix.name == 'macos' && steps.signing.outputs.apple_codesign == 'true'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Never touch the runner's login keychain (08 §7.1).
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security list-keychains -d user -s build.keychain login.keychain
+          echo "$APPLE_CERTIFICATE" | base64 -d > cert.p12
+          security import cert.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Without this, codesign blocks on a GUI prompt that never appears in CI.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+      - name: Install trusted-signing-cli (Azure Trusted Signing)
+        if: matrix.name == 'windows' && steps.signing.outputs.windows_trusted_signing == 'true'
+        run: cargo install trusted-signing-cli --locked
+
+      - name: tauri build
+        shell: bash
+        env:
+          # "-" when unsigned: codesign's ad-hoc identity. MEASURED, not
+          # assumed: with the variable simply unset Tauri skips bundle-level
+          # signing entirely — the .app keeps only the linker's ad-hoc binary
+          # signature, no entitlements are applied, and
+          # `codesign --verify --strict --deep` fails with "code has no
+          # resources but signature indicates they must be present". With "-"
+          # the bundler signs the bundle inside-out with the committed
+          # entitlements (ADR-011 §7.3). Windows skips Authenticode when its
+          # secrets are absent. Both paths must produce launchable bundles;
+          # smoke.yml proves they do.
+          APPLE_SIGNING_IDENTITY: ${{ steps.signing.outputs.apple_codesign == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-' }}
+          APPLE_TEAM_ID: ${{ steps.signing.outputs.apple_codesign == 'true' && secrets.APPLE_TEAM_ID || '' }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TS_ENDPOINT: ${{ secrets.AZURE_TS_ENDPOINT }}
+          AZURE_TS_ACCOUNT: ${{ secrets.AZURE_TS_ACCOUNT }}
+          AZURE_TS_CERT_PROFILE: ${{ secrets.AZURE_TS_CERT_PROFILE }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        working-directory: apps/desktop
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          EXTRA=()
+          if [[ "${{ matrix.name }}" == "macos" ]]; then
+            EXTRA+=(--target universal-apple-darwin)
+          fi
+          if [[ "${{ matrix.name }}" == "windows" && "${{ steps.signing.outputs.windows_trusted_signing }}" == "true" ]]; then
+            # signCommand is injected only when the credentials exist; a
+            # committed signCommand would fail every unsigned build.
+            EXTRA+=(--config "{\"bundle\":{\"windows\":{\"signCommand\":\"trusted-signing-cli -e $AZURE_TS_ENDPOINT -a $AZURE_TS_ACCOUNT -c $AZURE_TS_CERT_PROFILE -d Stratum %1\"}}}")
+          fi
+          pnpm dlx @tauri-apps/cli@2.11.0 build "${EXTRA[@]}"
+        # AZURE_TS_* are read by the injected signCommand string above.
+
+      - name: Locate bundles
+        id: paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.name }}" in
+            macos)   root="target/universal-apple-darwin/release/bundle" ;;
+            *)       root="target/release/bundle" ;;
+          esac
+          echo "root=$root" >> "$GITHUB_OUTPUT"
+          find "$root" -maxdepth 3 \( -name '*.dmg' -o -name '*.app' -o -name '*.exe' -o -name '*.msi' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -print
+
+      - name: The shipped binary has no e2e control surface (ADR-011)
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.name }}" in
+            macos)   bin="${{ steps.paths.outputs.root }}/macos/Stratum.app/Contents/MacOS/stratum-desktop" ;;
+            windows) bin="target/release/stratum-desktop.exe" ;;
+            linux)   bin="target/release/stratum-desktop" ;;
+          esac
+          cargo run -p xtask -- e2e --check-fence "$bin"
+
+      - name: Verify signatures and bundle contracts (macOS)
+        if: matrix.name == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="${{ steps.paths.outputs.root }}/macos/Stratum.app"
+          DMG=$(ls "${{ steps.paths.outputs.root }}"/dmg/*.dmg)
+          cargo run -p xtask -- dist verify --app "$APP" --universal
+          if [[ "${{ steps.signing.outputs.apple_codesign }}" == "true" ]]; then
+            cargo run -p xtask -- sign verify-app "$APP" || true # notarization not stapled yet
+          else
+            # The unsigned era's own gates, both hard: the .app is ad-hoc signed
+            # and structurally valid (prints the Gatekeeper consequence); the
+            # .dmg is checksum-valid and UNSIGNED — the bundler leaves it so for
+            # identity "-" on purpose, and an ad-hoc-signed image is refused
+            # (xtask/src/sign.rs, module doc).
+            cargo run -p xtask -- sign verify-app "$APP"
+            cargo run -p xtask -- sign verify-dmg "$DMG"
+          fi
+
+      - name: Notarize and staple (macOS, gated)
+        if: matrix.name == 'macos' && steps.signing.outputs.apple_codesign == 'true' && steps.signing.outputs.apple_notarize == 'true'
+        shell: bash
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          set -euo pipefail
+          DMG=$(ls "${{ steps.paths.outputs.root }}"/dmg/*.dmg)
+          APP="${{ steps.paths.outputs.root }}/macos/Stratum.app"
+          echo "$APPLE_API_KEY" | base64 -d > /tmp/asc.p8
+          xcrun notarytool submit "$DMG" \
+            --key /tmp/asc.p8 --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" \
+            --wait --timeout 30m --output-format json | tee notarize.json
+          test "$(jq -r .status notarize.json)" = "Accepted" || {
+            xcrun notarytool log "$(jq -r .id notarize.json)" --key /tmp/asc.p8 \
+              --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER"; exit 1; }
+          # Staple BOTH: the dmg for downloads, the .app for the tar.gz.
+          xcrun stapler staple "$DMG"
+          xcrun stapler staple "$APP"
+          # The hard release gates (W22 acceptance). Any non-zero exit fails.
+          cargo run -p xtask -- sign verify-dmg "$DMG" --require-notarized
+          cargo run -p xtask -- sign verify-app "$APP" --require-notarized
+
+      - name: signtool verify over every exe in the bundle (Windows, gated)
+        if: matrix.name == 'windows' && steps.signing.outputs.windows_trusted_signing == 'true'
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem -Recurse "target/release/bundle" -Include *.exe,*.msi,*.dll |
+            ForEach-Object {
+              & signtool verify /pa /v $_.FullName
+              if ($LASTEXITCODE -ne 0) { $failed = $true; Write-Error "unsigned: $_" }
+            }
+          if ($failed) { exit 1 }
+
+      - name: Package the .app as tar.gz (pre-signing primary artifact)
+        if: matrix.name == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ steps.paths.outputs.root }}/macos"
+          tar -czf "Stratum_${{ needs.prepare.outputs.version }}_universal.app.tar.gz" Stratum.app
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-out
+          root="${{ steps.paths.outputs.root }}"
+          find "$root" -maxdepth 3 \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*setup*.exe' \
+            -o -name '*.msi' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) \
+            -exec cp {} dist-out/ \;
+          ls -la dist-out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundles-${{ matrix.name }}
+          path: dist-out/*
+          if-no-files-found: error
+
+      - name: Delete the ephemeral keychain (always, even on failure)
+        if: always() && matrix.name == 'macos' && steps.signing.outputs.apple_codesign == 'true'
+        run: |
+          security delete-keychain build.keychain || true
+          rm -f cert.p12 /tmp/asc.p8
+
+  # ---------------------------------------------------------------------------
+  # M6 / Scenario E (A33): the packaged artifact must boot its webview on all
+  # three OSes. This is the only gate that catches "the bundle is fine but the
+  # webview cannot load".
+  smoke:
+    name: smoke
+    needs: [prepare, bundle]
+    uses: ./.github/workflows/smoke.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+
+  # ---------------------------------------------------------------------------
+  publish:
+    name: publish (${{ needs.prepare.outputs.channel }})
+    needs: [prepare, bundle, smoke]
+    runs-on: ubuntu-22.04
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bundles-*
+          merge-multiple: true
+          path: dist-out
+      - uses: actions/download-artifact@v4
+        with: { name: release-notes }
+
+      - name: Which signing credentials exist?
+        id: signing
+        shell: bash
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: cargo run -p xtask -- sign status --github-output
+
+      - name: SHA256SUMS (+ GPG signature when the key exists)
+        shell: bash
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          cd dist-out
+          sha256sum * > SHA256SUMS
+          if [[ "${{ steps.signing.outputs.linux_gpg }}" == "true" ]]; then
+            echo "$LINUX_GPG_PRIVATE_KEY" | gpg --batch --import
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$LINUX_GPG_PASSPHRASE" \
+              --detach-sign --armor SHA256SUMS
+          else
+            echo "::notice::No GPG key configured; SHA256SUMS is unsigned (ADR-011 §7.3)."
+          fi
+
+      - name: Prepend the unsigned-era notice to the release notes (ADR-011 §7.3)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.smoke.outputs.macos_signed }}" != "true" ]]; then
+            cat RELEASE_NOTES.md > notes.tmp || true
+            {
+              echo "> **Unsigned build.** macOS: a browser-downloaded copy shows"
+              echo "> \"Stratum is damaged and can't be opened\" — recovery is System"
+              echo "> Settings → Privacy & Security → Open Anyway, or"
+              echo "> \`scripts/macos-unquarantine.sh\`; prefer the \`.app.tar.gz\`,"
+              echo "> which is never quarantined. Windows: SmartScreen requires"
+              echo "> More info → Run anyway. Details: packaging/README.md."
+              echo
+              cat notes.tmp
+            } > RELEASE_NOTES.md
+          fi
+
+      - name: Publish stable draft release (tags only)
+        if: needs.prepare.outputs.channel == 'stable'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "v${{ needs.prepare.outputs.version }}" \
+            --draft --title "Stratum ${{ needs.prepare.outputs.version }}" \
+            --notes-file RELEASE_NOTES.md dist-out/* \
+            || gh release upload "v${{ needs.prepare.outputs.version }}" dist-out/* --clobber
+
+      - name: Roll the nightly prerelease
+        if: needs.prepare.outputs.channel == 'nightly'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release delete nightly --yes || true
+          git push origin :refs/tags/nightly || true
+          gh release create nightly \
+            --prerelease --title "Nightly ${{ needs.prepare.outputs.version }}" \
+            --notes-file RELEASE_NOTES.md dist-out/*

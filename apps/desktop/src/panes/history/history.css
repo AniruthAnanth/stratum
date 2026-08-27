@@ -1,0 +1,146 @@
+/* History (Review) — 06 §9.3, §14.4, §14.5.
+ *
+ * A dense two-column list at 22 px a row, monospace commands, a right-aligned
+ * `_rc`. Failures are `--state-failed` ink AND print their return code, because
+ * 06 §17 forbids colour as the only channel.
+ */
+
+.hist {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.hist__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.hist__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.hist__th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: var(--hairline) solid var(--border);
+  padding: 0 var(--sp-8);
+  height: var(--h-pane-header);
+  text-align: left;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: var(--fw-medium);
+  color: var(--text-label);
+}
+
+.hist__th--rc {
+  width: 52px;
+  text-align: right;
+}
+
+.hist__row {
+  height: var(--h-grid-row);
+  cursor: default;
+}
+
+.hist__row:hover {
+  background: var(--surface);
+}
+
+.hist__row[data-selected] {
+  background: var(--accent-subtle);
+}
+
+.hist__cmd,
+.hist__rc {
+  padding: 0 var(--sp-8);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--h-grid-row);
+  color: var(--text-body);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hist__rc {
+  text-align: right;
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-meta);
+}
+
+/* "unsuccessful commands and their error codes in red" ([GSM] 2). */
+.hist__row[data-failed] .hist__cmd,
+.hist__row[data-failed] .hist__rc {
+  color: var(--state-failed);
+}
+
+.hist__empty {
+  margin: 0;
+  padding: var(--sp-12) var(--sp-8);
+  color: var(--text-meta);
+  font-size: var(--fs-small);
+}
+
+/* "At the base of the History window is a text entry field that filters the
+   commands appearing in the History window." ([GSM] 2) — at the base, not the
+   top: the eye stays on the list and the hand stays near the Command window. */
+.hist__filter {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+  height: var(--h-toolbar);
+  padding: 0 var(--sp-8);
+  border-top: var(--hairline) solid var(--border);
+  background: var(--surface);
+}
+
+.hist__magnifier {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: var(--sp-2);
+  color: var(--text-meta);
+  cursor: pointer;
+  border-radius: var(--radius-control);
+}
+
+.hist__magnifier:hover {
+  color: var(--text-body);
+}
+
+.hist__magnifier:focus-visible {
+  outline: 1px solid var(--accent);
+}
+
+.hist__query {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--input);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  padding: var(--sp-2) var(--sp-6);
+}
+
+.hist__query:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}

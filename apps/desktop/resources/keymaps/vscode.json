@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "id": "vscode",
+  "name": "VS Code-like",
+  "basedOn": "modern",
+  "_source": "docs/design/06-ui-architecture.md §12.4 — deltas from Modern, applied after it.",
+  "bindings": [
+    { "command": "run.file", "key": "F5" },
+    { "command": "run.fileClean", "key": "Mod+F5" },
+    { "command": "run.block", "key": "Shift+Alt+Enter" },
+
+    { "command": "chrome.toggleSideBar", "key": "Mod+B" },
+    { "command": "chrome.toggleBottomPanel", "key": "Mod+`" },
+    { "command": "pane.toggle", "key": "Mod+Shift+E", "args": { "paneId": "project" } },
+    { "command": "search.project", "key": "Mod+Shift+F" },
+
+    { "command": "edit.addNextOccurrence", "key": "Mod+D", "when": "editorFocus" },
+    { "command": "edit.foldAll", "key": "Mod+K Mod+0", "when": "editorFocus" },
+    { "command": "nav.goToSymbol", "key": "Mod+Shift+O" }
+  ]
+}

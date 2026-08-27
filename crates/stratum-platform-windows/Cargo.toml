@@ -1,0 +1,85 @@
+# The Windows implementation of the platform adapter layer (08 §5).
+#
+# `deny.toml` names this crate as the ONLY permitted wrapper for `windows` and
+# `windows-sys`, and (with its two siblings) `rfd`. That ban list is the
+# machine-checkable half of 08 §5.0 rule 2; this manifest is the other half.
+#
+# THE CRATE IS NOT `#![cfg(target_os = "windows")]`, and that is deliberate —
+# it is the one structural difference from `stratum-platform-macos`. Everything
+# in here that is *policy* rather than a syscall is compiled and tested on every
+# host: the accelerator resolution, the `Path` list algebra behind the CLI shim,
+# the toast XML, the Credential Manager target-name grammar, the
+# `GetLogicalProcessorInformationEx` record walk, the HRESULT taxonomy. That is
+# the same trick `stratum-platform`'s own `Paths::resolve` uses to assert the
+# Windows column of 08 §5.2 from a macOS test run, and it is the only way this
+# unit's acceptance can be evidenced at all from a machine that cannot boot
+# Windows. The syscalls sit behind `#[cfg(target_os = "windows")] mod sys` in
+# each module and are verified with `cargo check --target x86_64-pc-windows-msvc`.
+
+[package]
+name = "stratum-platform-windows"
+description = "Windows implementation of the Stratum platform adapter traits."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-platform = { path = "../stratum-platform" }
+# Re-declared here rather than reached through `stratum-platform`: a crate must
+# name what it uses, and both appear in this crate's own signatures.
+camino = { workspace = true }
+async-trait = "0.1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+# Pinned at this use site, exactly as `stratum-platform-macos` pins `objc2*`:
+# the workspace dependency table lives in the root `Cargo.toml`, which R0
+# assigns to W00, and `windows` is not in it. If that table later grows the row,
+# this file switches to `workspace = true` in one edit.
+#
+# The feature list is the API surface of 08 §5.3–§5.7, one line per section, and
+# nothing else. `windows` gates every namespace behind a feature precisely so a
+# crate that needs the Credential Manager does not also link the DirectX
+# metadata.
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Security_Credentials",     # §5.3 CredRead/Write/Delete/EnumerateW
+  "Win32_System_Com",               # RoInitialize for WinRT + ShellExecuteW
+  "Win32_System_Console",           # §5.6 GenerateConsoleCtrlEvent
+  "Win32_System_JobObjects",        # §5.6 the Job Object W07 could not supply
+  "Win32_System_Registry",          # §5.5 HKCU\Environment, ProgIDs
+  "Win32_System_SystemInformation", # §5.6 physical cores, available memory
+  "Win32_System_Threading",         # §5.6 priority classes, WaitForSingleObject
+  "Win32_UI_Shell",                 # §5.4 AUMID, ShellExecuteW
+  "Win32_UI_WindowsAndMessaging",   # §5.5 WM_SETTINGCHANGE broadcast
+  "UI_Notifications",               # §5.4 toasts
+  "Data_Xml_Dom",                   # the toast payload
+] }
+# `IFileOpenDialog`/`IFileSaveDialog` with the COM apartment and the modal
+# pumping already handled. 08 §5.4 prescribes the modern dialogs rather than the
+# legacy `GetOpenFileName`, which is what `rfd` calls; `deny.toml` names this
+# crate in its `wrappers` list, so the dependency is the sanctioned one.
+rfd = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints.rust]
+missing_docs = "warn"
+# NOT `forbid`, unlike `stratum-platform` and `stratum-platform-host`: every
+# Win32 call in here is `unsafe` by construction. Each one carries a SAFETY
+# comment naming the precondition it upholds.
+unsafe_code = "allow"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+# The second W10 acceptance bullet, inherited by W24 per OS: "`Unsupported` and
+# `Cancelled` are first-class returns everywhere; a test proves no impl
+# `unwrap`s them." This is the compiler half of that proof and
+# `tests/no_unwrap.rs` is the textual half.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

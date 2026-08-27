@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "stata",
+  "name": "Stata-like",
+  "basedOn": "modern",
+  "_source": "docs/design/06-ui-architecture.md §12.3 — deltas from Modern, applied after it.",
+  "_additive": "§12.3 is explicit that `Mod+Enter` still runs the current block. Deltas are merged after the base and the later binding wins the keystroke, so a delta REPLACES a base binding on the same key and leaves every other base binding standing.",
+  "bindings": [
+    { "command": "history.previous", "key": "PageUp", "when": "commandBarFocus" },
+    { "command": "history.next", "key": "PageDown", "when": "commandBarFocus" },
+    { "command": "commandbar.complete", "key": "Tab", "when": "commandBarFocus" },
+
+    { "command": "run.break", "key": "Mod+." },
+    { "command": "run.file", "key": "Mod+D" },
+    { "command": "run.fileQuiet", "key": "Mod+Shift+D" },
+
+    { "command": "data.edit", "key": "Mod+8" },
+    { "command": "window.doFileEditor", "key": "Mod+9" },
+    { "command": "pane.toggle", "key": "Mod+4", "args": { "paneId": "variables" } },
+    { "command": "window.graph", "key": "Mod+G" },
+
+    { "command": "stata.functionKey", "key": "F1", "args": { "n": 1 } },
+    { "command": "stata.functionKey", "key": "F2", "args": { "n": 2 } },
+    { "command": "stata.functionKey", "key": "F3", "args": { "n": 3 } },
+    { "command": "stata.functionKey", "key": "F4", "args": { "n": 4 } },
+    { "command": "stata.functionKey", "key": "F5", "args": { "n": 5 } },
+    { "command": "stata.functionKey", "key": "F6", "args": { "n": 6 } },
+    { "command": "stata.functionKey", "key": "F7", "args": { "n": 7 } },
+    { "command": "stata.functionKey", "key": "F8", "args": { "n": 8 } },
+
+    { "command": "run.block", "key": "Mod+Enter" }
+  ]
+}

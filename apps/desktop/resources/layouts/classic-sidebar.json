@@ -1,0 +1,104 @@
+{
+  "schema": 3,
+  "id": "classic-sidebar",
+  "name": "Classic Stata (Sidebar)",
+  "basedOn": "classic",
+  "_source": "docs/design/06-ui-architecture.md §8.3 — Stata 18's Sidebar layout: History is a third tab in the right stack beside Variables and Properties, so the centre column is the full width minus that stack.",
+  "chrome": {
+    "topBar": "compact",
+    "statusBar": true
+  },
+  "defaults": {
+    "inlineResults": "off",
+    "docView": false,
+    "commandBar": "pane",
+    "theme": "system"
+  },
+  "windows": [
+    {
+      "role": "main",
+      "label": "main",
+      "dock": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "branch",
+                "data": [
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": ["results"],
+                      "activeView": "results",
+                      "id": "1"
+                    },
+                    "size": 640
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "views": ["commandbar"],
+                      "activeView": "commandbar",
+                      "id": "2"
+                    },
+                    "size": 100
+                  }
+                ],
+                "size": 980
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": ["variables", "properties", "history"],
+                  "activeView": "variables",
+                  "id": "3"
+                },
+                "size": 300
+              }
+            ],
+            "size": 740
+          },
+          "width": 1280,
+          "height": 740,
+          "orientation": "HORIZONTAL"
+        },
+        "panels": {
+          "results": {
+            "id": "results",
+            "contentComponent": "results",
+            "title": "Results"
+          },
+          "commandbar": {
+            "id": "commandbar",
+            "contentComponent": "commandbar",
+            "title": "Command"
+          },
+          "variables": {
+            "id": "variables",
+            "contentComponent": "variables",
+            "title": "Variables"
+          },
+          "properties": {
+            "id": "properties",
+            "contentComponent": "properties",
+            "title": "Properties"
+          },
+          "history": {
+            "id": "history",
+            "contentComponent": "history",
+            "title": "History"
+          }
+        },
+        "activeGroup": "3"
+      }
+    }
+  ],
+  "panes": {
+    "history": {
+      "columns": ["command", "rc"]
+    },
+    "variables": {},
+    "properties": {}
+  }
+}

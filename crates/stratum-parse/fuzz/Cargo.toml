@@ -1,0 +1,76 @@
+# The manifest `cargo fuzz` needs, so that the three targets beside it are built
+# by something rather than being source that documents a property.
+#
+# W04 and W04b both left a "NOTE FOR THE ARCHITECT" in their targets refusing to
+# create this file: it was claimed by no unit in `docs/ownership.toml`, and a
+# tracked file owned by nobody fails `cargo xtask ownership`. The repair round
+# that registered `mod e2e;` closed the same class of hole here — `crates/
+# stratum-parse/fuzz/Cargo.toml` is now W04's in that manifest, alongside the
+# `crates/stratum-parse/Cargo.toml` it already owns.
+#
+# ITS OWN WORKSPACE, on purpose. `[workspace]` below detaches this package from
+# the root workspace, which is what `cargo fuzz init` generates and what this
+# tree needs for two independent reasons:
+#
+#   * `libfuzzer-sys` requires a NIGHTLY toolchain (`-Z sanitizer=address`), and
+#     `rust-toolchain.toml` pins the repository to stable 1.96.0 because a
+#     codegen change can move a numeric golden (08 §11.3). A member here would
+#     put a nightly-only crate inside every `cargo build --workspace` CI runs.
+#   * `cargo hakari`'s feature unification covers workspace members; a fuzz
+#     target's ASan/coverage feature set has no business unifying with the
+#     engine's.
+#
+# So the targets run under `cargo +nightly fuzz run <target>` from this
+# directory, and the same properties run on stable in CI as ordinary tests and
+# proptests — `tests/resegment.rs`, `tests/macro.rs`, `tests/parse.rs`. Each
+# target's module doc says which.
+
+[package]
+name = "stratum-parse-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.stratum-parse]
+path = ".."
+
+# `debug = 1` gives line tables and nothing else: enough for libFuzzer to
+# symbolicate a crash into a file and line, without the opt-level drop that
+# would make the corpus explore a fraction as much per hour. PRODUCT_SPEC §0a —
+# a bigger artifact is the acceptable side of this trade.
+[profile.release]
+debug = 1
+
+# One `[[bin]]` per target. `cargo fuzz` reads these, not the directory listing,
+# so a target added to `fuzz_targets/` without a block here is invisible to it —
+# which is the exact failure this file exists to end.
+
+[[bin]]
+name = "fuzz_segment"
+path = "fuzz_targets/fuzz_segment.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_expand"
+path = "fuzz_targets/fuzz_expand.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_parse"
+path = "fuzz_targets/fuzz_parse.rs"
+test = false
+doc = false
+bench = false

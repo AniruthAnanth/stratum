@@ -1,0 +1,143 @@
+/* Project — 06 §8.2's left group, §14.4 density.
+ *
+ * Grouped by kind rather than by folder. A researcher's project directory is
+ * flat and full: twelve `.do` files, forty `.dta`, a hundred logs. A folder tree
+ * over that is a tree with one node in it, and the question actually being asked
+ * is "which do-file", not "which directory".
+ */
+
+.proj {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.proj__cd {
+  appearance: none;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-control);
+  background: none;
+  padding: 0 var(--sp-4);
+  height: 18px;
+  color: var(--text-meta);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  cursor: pointer;
+}
+
+.proj__cd:hover {
+  color: var(--text-body);
+  border-color: var(--border-strong);
+}
+
+.proj__cd:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.proj__root {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-8);
+  border-bottom: var(--hairline) solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-meta);
+  white-space: nowrap;
+  overflow: hidden;
+  /* The tail of a path is the informative half, so it is the half kept. */
+  direction: rtl;
+  text-align: left;
+}
+
+.proj__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.proj__group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0 var(--sp-8);
+  height: var(--h-grid-row);
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: var(--fw-medium);
+  color: var(--text-label);
+  cursor: pointer;
+}
+
+.proj__group-head:hover {
+  color: var(--text-body);
+}
+
+.proj__group-head:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.proj__twisty {
+  display: inline-block;
+  width: 8px;
+  font-size: 8px;
+  color: var(--text-meta);
+}
+
+.proj__count {
+  margin-inline-start: auto;
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-meta);
+}
+
+.proj__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proj__entry {
+  display: block;
+  width: 100%;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0 var(--sp-8) 0 var(--sp-24);
+  height: var(--h-grid-row);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--h-grid-row);
+  color: var(--text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.proj__entry:hover {
+  background: var(--surface);
+}
+
+.proj__entry:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.proj__empty {
+  margin: 0;
+  padding: var(--sp-12) var(--sp-8);
+  color: var(--text-meta);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+}

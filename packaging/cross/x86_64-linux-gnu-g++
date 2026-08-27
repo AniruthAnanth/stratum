@@ -1,0 +1,9 @@
+#!/bin/bash
+# zig-as-cross-c++ shim (W22). See x86_64-linux-gnu-gcc in this directory for
+# the full story; identical except for the compiler driver.
+args=()
+for a in "$@"; do
+  [[ $a == --target=* ]] && continue
+  args+=("$a")
+done
+exec zig c++ -target x86_64-linux-gnu "${args[@]}"

@@ -1,0 +1,272 @@
+/* Execution-state chrome — spec §12, §13, §15; 06 §5.2, §5.3, §14.5, §14.6.
+ *
+ * Every colour is a token from `resources/tokens.generated.css`, whose contrast
+ * ratios CI recomputes from the palette itself. There is not one hex literal in
+ * this file and there must never be: a state colour typed in by hand is a state
+ * colour nothing checks.
+ *
+ * Imported by each component module rather than by a barrel, so a host that
+ * imports only `StaleBanner` still gets the strip's appearance. Vite dedupes.
+ */
+
+/* ---- The block-state strip (06 §5.2) ----------------------------------- */
+
+.exec-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-height: 20px; /* 06 §5.2 names the height; the strip is a line, not a card */
+  margin: 0;
+  padding: var(--sp-2) var(--card-pad-x);
+  border-top: var(--hairline) solid var(--border);
+  /* The state ink is carried by the left edge, matching the card rail's 2px so
+   * a card and its strip read as one object (06 §14.8 rule 2). */
+  border-left: var(--w-state-rail) solid transparent;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+}
+
+.exec-banner__headline {
+  font-weight: var(--fw-medium);
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+.exec-banner__dash,
+.exec-banner__because {
+  color: var(--text-meta);
+}
+
+.exec-banner__because {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exec-banner__spacer {
+  flex: 1 1 auto;
+}
+
+.exec-banner[data-state="stale"] {
+  border-left-color: var(--state-stale);
+  /* 06 §5.2: the stale rail is DASHED, which is the second channel — a
+   * greyscale screenshot still distinguishes stale from current. */
+  border-left-style: dashed;
+}
+.exec-banner[data-state="failed"],
+.exec-banner[data-state="broken"] {
+  border-left-color: var(--state-failed);
+}
+.exec-banner[data-state="interrupted"] {
+  border-left-color: var(--state-interrupted);
+}
+.exec-banner[data-state="current"],
+.exec-banner[data-state="current_unverifiable"] {
+  border-left-color: var(--state-ok);
+}
+.exec-banner[data-state="running"] {
+  border-left-color: var(--accent);
+}
+.exec-banner[data-state="never_run"],
+.exec-banner[data-state="queued"] {
+  border-left-color: var(--state-never-run);
+}
+
+/* The deterministic quick fix on a Broken block. A button, never applied for
+ * you: A15's write gate is the only path that changes a document. */
+.exec-banner__fix {
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--input);
+  padding: 0 var(--sp-6);
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-small);
+  cursor: default;
+}
+.exec-banner__fix:hover {
+  border-color: var(--accent);
+}
+
+/* ---- Plan notices (ARCHITECTURE §7.5) ---------------------------------- */
+
+.exec-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: 0;
+  padding: var(--sp-2) var(--card-pad-x);
+  border-top: var(--hairline) solid var(--border);
+  color: var(--text-meta);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+}
+
+/* ---- The readout (06 §14.2) -------------------------------------------- */
+
+.exec-readout {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+.exec-readout__ids {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-width: 0;
+  color: var(--text-meta);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  font-variant-numeric: var(--font-numeric);
+}
+
+.exec-readout__sep {
+  color: var(--text-disabled);
+}
+
+.exec-mode {
+  color: var(--text-meta);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-micro);
+}
+
+/* ---- CLEAN (spec §15, 06 §5.3) ----------------------------------------- */
+
+/* `display: contents` only where the element carries nothing an assistive
+ * technology needs. `.clean-scope` is a bare layout-neutral wrapper, so it is
+ * safe; `.clean-chip` carries the tooltip and `.exec-stale-live` is a live
+ * region, and both have historically been dropped from the accessibility tree by
+ * `display: contents`. They get a real inline box instead. */
+.clean-scope {
+  display: contents;
+}
+
+.clean-chip,
+.exec-stale-live {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Neutral ink instead of teal, on every state glyph inside a clean scope.
+ *
+ * `StateGlyph` sets `stroke` and `fill` as SVG PRESENTATION ATTRIBUTES, and a
+ * presentation attribute loses to any CSS declaration — so this override needs
+ * no specificity games and no prop threaded through four components. The two
+ * `:not()` guards keep the stroked glyphs stroked and the filled ones filled:
+ * the component writes the literal `none` on whichever channel is unused.
+ */
+[data-clean] .state-glyph path:not([stroke="none"]) {
+  stroke: var(--text-body);
+}
+[data-clean] .state-glyph path:not([fill="none"]) {
+  fill: var(--text-body);
+}
+
+/* ---- The run queue ----------------------------------------------------- */
+
+.run-queue {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--canvas);
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.run-verbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-8);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+/* 06 §14.6: a 1px hairline that fills. No spinner anywhere in the product.
+ *
+ * A native `<progress>` stripped to a rule. The three pseudo-elements are the
+ * whole cross-engine story: WebKit (macOS WKWebView) and Blink use the two
+ * `-webkit-` ones, WebKitGTK included; Gecko uses `-moz-progress-bar`. They
+ * cannot be combined into one selector list — an engine that does not recognise
+ * a selector drops the entire rule — so they are written out separately on
+ * purpose rather than merged by a tidy-up. */
+.run-queue__progress {
+  display: block;
+  width: 100%;
+  height: var(--hairline);
+  border: 0;
+  appearance: none;
+  background: var(--border);
+  color: var(--accent);
+}
+.run-queue__progress::-webkit-progress-bar {
+  background: var(--border);
+}
+.run-queue__progress::-webkit-progress-value {
+  background: var(--accent);
+  transition: width var(--motion-state) var(--motion-state-easing);
+}
+.run-queue__progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+.run-queue__list,
+.run-queue__skipped {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.run-queue__skipped {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.run-queue__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: var(--h-grid-row);
+  padding: 0 var(--sp-8);
+}
+
+.run-queue__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+}
+
+.run-queue__reason {
+  flex: 0 0 auto;
+  color: var(--text-meta);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-micro);
+}
+
+.run-queue__skipped .run-queue__label {
+  color: var(--text-meta);
+}
+
+.run-queue__idle {
+  margin: 0;
+  padding: var(--sp-8);
+  color: var(--text-meta);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-queue__progress::-webkit-progress-value {
+    transition: none;
+  }
+}

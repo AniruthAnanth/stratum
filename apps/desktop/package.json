@@ -1,0 +1,38 @@
+{
+  "name": "@stratum/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stratum desktop frontend shell — SolidJS + Vite, the dock, and the keyboard authority.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "biome ci .",
+    "fmt": "biome format --write .",
+    "tsc": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.4",
+    "@tauri-apps/api": "^2.2.0",
+    "dockview-core": "^4.13.1",
+    "solid-js": "^1.9.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^3.2.7",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vite-plugin-solid": "^2.11.6",
+    "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

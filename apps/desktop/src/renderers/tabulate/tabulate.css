@@ -1,0 +1,62 @@
+/* tabulate — 06 §6.5.
+ *
+ * Totals are separated by a rule and never bolded. No zebra striping, no
+ * vertical rules; the cell-intensity shading 06 §6.5 describes is opt-in and
+ * lands with the graph work, because it is analysis rather than decoration.
+ */
+
+.tabul__table {
+  width: max-content;
+}
+
+.tabul__caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: var(--sp-4);
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.tabul__table th[scope="row"] {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-regular);
+  color: var(--text-body);
+}
+
+.tabul__margin {
+  color: var(--text-secondary);
+}
+
+.tabul__totals > * {
+  border-top: 1px solid var(--rule-mid);
+  font-weight: var(--fw-regular);
+}
+
+.tabul__test {
+  margin: var(--sp-6) 0 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-secondary);
+  white-space: pre;
+}
+
+.tabul__viewer {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  cursor: default;
+}
+
+.tabul__viewer:hover {
+  border-bottom-color: var(--accent);
+}

@@ -1,0 +1,65 @@
+# ARCHITECTURE.md §5: "`missing` (the one definition), `Value`, `math` (the
+# `libm` re-export — the *only* transcendentals in the engine), `fmt`,
+# `reduce::map_reduce_blocks`, `dist`, `sweep::GramSolve`, `gram` (hand-written,
+# no BLAS, no FMA — A19). Re-exports `StorageType`/`Span` from proto; declares
+# neither. No dataset, no parsing, no I/O."
+#
+# The dependency list is three entries long and each one is load-bearing:
+#
+#   stratum-proto  StorageType and Span are declared once, there (A10).
+#   libm           ADR-004 §3: `std`'s f64 transcendentals forward to the
+#                  platform libm and differ bitwise between glibc, musl, Apple's
+#                  and MSVC's, which alone breaks the cross-OS determinism gate.
+#   rayon          the ONLY parallel primitive, used exclusively through
+#                  `reduce::map_reduce_blocks` with a sequential ordered fold.
+#
+# `rayon` is optional and behind the default `parallel` feature so that
+# `cargo check --target wasm32-unknown-unknown --no-default-features` — which
+# `cargo xtask layering --wasm-build` runs — resolves a graph with no thread
+# spawning in it at all. The sequential fallback produces BITWISE IDENTICAL
+# results, because the fold order is the chunk index either way; that is
+# asserted in `reduce`'s tests rather than assumed.
+
+[package]
+name = "stratum-core"
+description = "Stratum's shared numeric primitives: Stata missing values, formatting, deterministic reduction and the sweep solver."
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = ["parallel"]
+parallel = ["dep:rayon"]
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+serde = { workspace = true }
+libm = { workspace = true }
+thiserror = { workspace = true }
+rayon = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+criterion = { workspace = true }
+serde_json = { workspace = true }
+# 05 §13: an INDEPENDENT oracle for `dist`, never linked into a shipping
+# binary. Declared here rather than in the workspace table because the table is
+# W00's file and this is the only crate that will ever want it.
+statrs = "0.19"
+
+[lints.rust]
+# Every kernel here is safe code; a `get_unchecked` in the sweep loop would buy
+# a few percent and cost the ability to trust the numbers.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[[bench]]
+name = "gram"
+harness = false

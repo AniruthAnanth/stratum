@@ -1,0 +1,591 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 18.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2023 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: [redacted]
+Serial number: [redacted]
+  Licensed to: [redacted]
+               [redacted]
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do semantics.do 
+
+. * Golden reference: the semantics that are easiest to get subtly wrong.
+. * Missing-value encoding and ordering, type promotion, precision, varlists.
+. set more off
+
+. set linesize 100
+
+. 
+. di "===== extended missing ordering ====="
+===== extended missing ordering =====
+
+. clear
+
+. set obs 8
+Number of observations (_N) was 0, now 8.
+
+. gen double x = .
+(8 missing values generated)
+
+. replace x = 1      in 1
+(1 real change made)
+
+. replace x = 100    in 2
+(1 real change made)
+
+. replace x = -50    in 3
+(1 real change made)
+
+. replace x = .      in 4
+(0 real changes made)
+
+. replace x = .a     in 5
+(1 real change made, 1 to missing)
+
+. replace x = .b     in 6
+(1 real change made, 1 to missing)
+
+. replace x = .z     in 7
+(1 real change made, 1 to missing)
+
+. replace x = 0      in 8
+(1 real change made)
+
+. list x
+
+     +-----+
+     |   x |
+     |-----|
+  1. |   1 |
+  2. | 100 |
+  3. | -50 |
+  4. |   . |
+  5. |  .a |
+     |-----|
+  6. |  .b |
+  7. |  .z |
+  8. |   0 |
+     +-----+
+
+. di "sort ascending:"
+sort ascending:
+
+. sort x
+
+. list x
+
+     +-----+
+     |   x |
+     |-----|
+  1. | -50 |
+  2. |   0 |
+  3. |   1 |
+  4. | 100 |
+  5. |   . |
+     |-----|
+  6. |  .a |
+  7. |  .b |
+  8. |  .z |
+     +-----+
+
+. di "counts:"
+counts:
+
+. count if x < .
+  4
+
+. count if missing(x)
+  4
+
+. count if x >= .
+  4
+
+. di "is .a > . ? " (.a > .)
+is .a > . ? 1
+
+. di "is .z > .a ? " (.z > .a)
+is .z > .a ? 1
+
+. di "is . > 1e300 ? " (. > 1e300)
+is . > 1e300 ? 1
+
+. 
+. di "===== missing propagation in arithmetic ====="
+===== missing propagation in arithmetic =====
+
+. di 1 + .
+.
+
+. di 1 * .
+.
+
+. di . / .
+.
+
+. di max(1, .)
+1
+
+. di min(1, .)
+1
+
+. di sum(1)
+1
+
+. di cond(1 > ., 10, 20)
+20
+
+. di missing(.a)
+1
+
+. di 2 == .
+0
+
+. 
+. di "===== division and edge numerics ====="
+===== division and edge numerics =====
+
+. di 1/0
+.
+
+. di -1/0
+.
+
+. di 0/0
+.
+
+. di sqrt(-1)
+.
+
+. di log(0)
+.
+
+. di log(-1)
+.
+
+. di exp(1000)
+.
+
+. 
+. di "===== type promotion and storage ====="
+===== type promotion and storage =====
+
+. clear
+
+. set obs 3
+Number of observations (_N) was 0, now 3.
+
+. gen byte b = 100
+
+. gen int i = 30000
+
+. gen long l = 2000000
+
+. gen float f = 1.5
+
+. gen double d = 1.5
+
+. describe
+
+Contains data
+ Observations:             3                  
+    Variables:             5                  
+----------------------------------------------------------------------------------------------------
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+----------------------------------------------------------------------------------------------------
+b               byte    %8.0g                 
+i               int     %8.0g                 
+l               long    %12.0g                
+f               float   %9.0g                 
+d               double  %10.0g                
+----------------------------------------------------------------------------------------------------
+Sorted by: 
+     Note: Dataset has changed since last saved.
+
+. di "byte overflow:"
+byte overflow:
+
+. capture replace b = 200
+
+. di "rc=" _rc
+rc=0
+
+. gen byte b2 = 200
+
+. describe b2
+
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+----------------------------------------------------------------------------------------------------
+b2              byte    %8.0g                 
+
+. 
+. di "===== float vs double precision ====="
+===== float vs double precision =====
+
+. clear
+
+. set obs 1
+Number of observations (_N) was 0, now 1.
+
+. gen float ff = 1.1
+
+. gen double dd = 1.1
+
+. di %21x ff
++1.19999a0000000X+000
+
+. di %21x dd
++1.199999999999aX+000
+
+. di ff == 1.1
+0
+
+. di dd == 1.1
+1
+
+. di float(1.1) == ff
+1
+
+. format ff %20.18f
+
+. format dd %20.18f
+
+. list ff dd
+
+     +---------------------------------------------+
+     |                   ff                     dd |
+     |---------------------------------------------|
+  1. | 1.100000023841857910   1.100000000000000089 |
+     +---------------------------------------------+
+
+. 
+. di "===== integer display and rounding ====="
+===== integer display and rounding =====
+
+. di 0.1 + 0.2
+.3
+
+. di (0.1 + 0.2) == 0.3
+0
+
+. di round(2.5)
+3
+
+. di round(3.5)
+4
+
+. di round(-2.5)
+-2
+
+. di int(2.9)
+2
+
+. di int(-2.9)
+-2
+
+. di ceil(2.1)
+3
+
+. di floor(-2.1)
+-3
+
+. di mod(7, 3)
+1
+
+. di mod(-7, 3)
+2
+
+. 
+. di "===== varlist expansion ====="
+===== varlist expansion =====
+
+. sysuse auto, clear
+(1978 automobile data)
+
+. di "wildcard:"
+wildcard:
+
+. summarize m*
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+        make |          0
+         mpg |         74     21.2973    5.785503         12         41
+
+. di "range:"
+range:
+
+. summarize price-rep78
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       price |         74    6165.257    2949.496       3291      15906
+         mpg |         74     21.2973    5.785503         12         41
+       rep78 |         69    3.405797    .9899323          1          5
+
+. di "abbreviation:"
+abbreviation:
+
+. summarize pri
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       price |         74    6165.257    2949.496       3291      15906
+
+. di "_all count:"
+_all count:
+
+. ds
+make          mpg           headroom      weight        turn          gear_ratio
+price         rep78         trunk         length        displacement  foreign
+
+. di "negated / multiple:"
+negated / multiple:
+
+. summarize price mpg weight
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       price |         74    6165.257    2949.496       3291      15906
+         mpg |         74     21.2973    5.785503         12         41
+      weight |         74    3019.459    777.1936       1760       4840
+
+. 
+. di "===== if and in interaction ====="
+===== if and in interaction =====
+
+. count if mpg > 20
+  36
+
+. count if mpg > 20 & !missing(rep78)
+  33
+
+. count in 1/10
+  10
+
+. count if foreign == 1 in 1/40
+  0
+
+. summarize price if rep78 == 3 in 1/50
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       price |         27    6607.074    3661.267       3291      15906
+
+. 
+. di "===== _n and _N ====="
+===== _n and _N =====
+
+. sort price
+
+. gen idx = _n
+
+. gen tot = _N
+
+. gen lagprice = price[_n-1]
+(1 missing value generated)
+
+. gen leadprice = price[_n+1]
+(1 missing value generated)
+
+. list idx price lagprice leadprice in 1/5
+
+     +-----------------------------------+
+     | idx   price   lagprice   leadpr~e |
+     |-----------------------------------|
+  1. |   1   3,291          .       3299 |
+  2. |   2   3,299       3291       3667 |
+  3. |   3   3,667       3299       3748 |
+  4. |   4   3,748       3667       3798 |
+  5. |   5   3,798       3748       3799 |
+     +-----------------------------------+
+
+. list idx price lagprice leadprice in 72/74
+
+     +------------------------------------+
+     | idx    price   lagprice   leadpr~e |
+     |------------------------------------|
+ 72. |  72   13,594      13466      14500 |
+ 73. |  73   14,500      13594      15906 |
+ 74. |  74   15,906      14500          . |
+     +------------------------------------+
+
+. 
+. di "===== by-group _n and _N ====="
+===== by-group _n and _N =====
+
+. sort foreign price
+
+. by foreign: gen gidx = _n
+
+. by foreign: gen gtot = _N
+
+. by foreign: gen firstprice = price[1]
+
+. list foreign gidx gtot firstprice in 1/3
+
+     +-----------------------------------+
+     |  foreign   gidx   gtot   firstp~e |
+     |-----------------------------------|
+  1. | Domestic      1     52       3291 |
+  2. | Domestic      2     52       3291 |
+  3. | Domestic      3     52       3291 |
+     +-----------------------------------+
+
+. list foreign gidx gtot firstprice in 52/54
+
+     +-----------------------------------+
+     |  foreign   gidx   gtot   firstp~e |
+     |-----------------------------------|
+ 52. | Domestic     52     52       3291 |
+ 53. |  Foreign      1     22       3748 |
+ 54. |  Foreign      2     22       3748 |
+     +-----------------------------------+
+
+. 
+. di "===== string functions ====="
+===== string functions =====
+
+. di length("hello")
+5
+
+. di substr("hello", 2, 3)
+ell
+
+. di upper("abc")
+ABC
+
+. di strpos("hello", "ll")
+3
+
+. di trim("  pad  ")
+pad
+
+. di subinstr("aaa", "a", "b", 2)
+bba
+
+. di strlen("héllo")
+6
+
+. di ustrlen("héllo")
+5
+
+. di ("abc" + "def")
+abcdef
+
+. di real("3.14")
+3.14
+
+. di string(3.14159, "%6.2f")
+3.14
+
+. 
+. di "===== compound quotes and macros ====="
+===== compound quotes and macros =====
+
+. local a = 5
+
+. local b "some text"
+
+. di `a'
+5
+
+. di "`b'"
+some text
+
+. di `"nested "quoted" text"'
+nested "quoted" text
+
+. local c `"`b' more"'
+
+. di `"`c'"'
+some text more
+
+. global g "world"
+
+. di "hello $g"
+hello world
+
+. local n : word count one two three
+
+. di "word count = `n'"
+word count = 3
+
+. local w : word 2 of one two three
+
+. di "word 2 = `w'"
+word 2 = two
+
+. 
+. di "===== macro expansion order ====="
+===== macro expansion order =====
+
+. local var price
+
+. summarize `var'
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       price |         74    6165.257    2949.496       3291      15906
+
+. local cmd summarize
+
+. `cmd' mpg
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+         mpg |         74     21.2973    5.785503         12         41
+
+. local opt , detail
+
+. quietly summarize price `opt'
+
+. di r(p50)
+5006.5
+
+. 
+. di "===== display formats ====="
+===== display formats =====
+
+. di %9.0g 1234567
+  1234567
+
+. di %9.2f 3.14159
+     3.14
+
+. di %-10s "left"
+left      
+
+. di %10s "right"
+     right
+
+. di %tc 0
+01jan1960 00:00:00
+
+. di %td 0
+01jan1960
+
+. di %td 22000
+26mar2020
+
+. 
+. di "===== END ====="
+===== END =====
+
+. 
+end of do-file

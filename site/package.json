@@ -1,0 +1,28 @@
+{
+  "name": "@stratum/site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stratum's landing page — a static Next.js export served from the gh-pages branch at aniruthananth.github.io/stratum.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && node scripts/postbuild.mjs",
+    "serve": "node scripts/serve.mjs",
+    "tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "motion": "13.1.1",
+    "next": "16.3.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

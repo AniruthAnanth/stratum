@@ -1,0 +1,108 @@
+{
+  "schema": 3,
+  "id": "modern",
+  "name": "Modern",
+  "_source": "docs/design/06-ui-architecture.md §8.2. Left 240 (Project/Variables/Sections), centre flex (editor tabs), right 340 (Results/Graphs/Assistant, Results active). The Assistant is a TAB and is not the active one on first launch: spec §8 requires an AI panel and §39 forbids feeling like a chat app.",
+  "chrome": {
+    "topBar": "full",
+    "statusBar": true
+  },
+  "defaults": {
+    "inlineResults": "editor-run",
+    "docView": false,
+    "commandBar": "docked-bottom",
+    "theme": "system"
+  },
+  "windows": [
+    {
+      "role": "main",
+      "label": "main",
+      "dock": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": ["project", "variables", "sections"],
+                  "activeView": "project",
+                  "id": "2"
+                },
+                "size": 240
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": ["editor"],
+                  "activeView": "editor",
+                  "id": "1"
+                },
+                "size": 700
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": ["results", "graphs", "assistant"],
+                  "activeView": "results",
+                  "id": "3"
+                },
+                "size": 340
+              }
+            ],
+            "size": 740
+          },
+          "width": 1280,
+          "height": 740,
+          "orientation": "HORIZONTAL"
+        },
+        "panels": {
+          "editor": {
+            "id": "editor",
+            "contentComponent": "editor",
+            "title": "Editor"
+          },
+          "project": {
+            "id": "project",
+            "contentComponent": "project",
+            "title": "Project"
+          },
+          "variables": {
+            "id": "variables",
+            "contentComponent": "variables",
+            "title": "Variables"
+          },
+          "sections": {
+            "id": "sections",
+            "contentComponent": "sections",
+            "title": "Sections"
+          },
+          "results": {
+            "id": "results",
+            "contentComponent": "results",
+            "title": "Results"
+          },
+          "graphs": {
+            "id": "graphs",
+            "contentComponent": "graphs",
+            "title": "Graphs"
+          },
+          "assistant": {
+            "id": "assistant",
+            "contentComponent": "assistant",
+            "title": "Assistant"
+          }
+        },
+        "activeGroup": "3"
+      }
+    }
+  ],
+  "panes": {
+    "results": {
+      "active": true
+    },
+    "assistant": {
+      "active": false
+    }
+  }
+}

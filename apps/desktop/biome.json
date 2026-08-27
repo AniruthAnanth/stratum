@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignore": [
+      "dist",
+      "node_modules",
+      "src/ipc/commands.ts",
+      "src/ipc/events.ts",
+      "src/ipc/types.ts",
+      "src/wasm/generated",
+      "src-tauri/gen",
+      "src-tauri/target",
+      "resources/tokens.generated.css"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "organizeImports": { "enabled": true },
+  "javascript": {
+    "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" }
+  },
+  "json": { "parser": { "allowComments": true } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "useExhaustiveDependencies": "off"
+      },
+      "style": {
+        "useConst": "error",
+        "noNonNullAssertion": "error",
+        "useNamingConvention": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsoleLog": "warn"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "useLiteralKeys": "off"
+      },
+      "performance": {
+        "noDelete": "error"
+      },
+      "nursery": { "recommended": false }
+    }
+  }
+}

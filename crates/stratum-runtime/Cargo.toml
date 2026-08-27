@@ -1,0 +1,75 @@
+# The Stata interpreter — ARCHITECTURE §5, design 03 §§3–5, CONTRACTS §13.
+#
+# Three agents share this crate, file-disjoint under R0 (`docs/ownership.toml`):
+# W06a the interpreter core, W06b state/SMCL/document model, W06c the built-in
+# command surface. This manifest belongs to W06a.
+#
+# THE DEPENDENCY LIST IS SHORTER THAN ARCHITECTURE §5's ONLY BY `stratum-graph`
+# (W19, still being written; nothing in scope needs it). The dta and stats edges
+# §5 sanctions are taken:
+#
+#   stratum-dta     `host::FsHost` — the shipped `RuntimeHost`. The trait stays,
+#                   because ARCHITECTURE §5 makes `ExecCtx` "the *only* ambient
+#                   access to env/clock/fs, all recorded": commands still reach
+#                   the reader through `ExecCtx`'s recorded doors, and a direct
+#                   `stratum-dta` call from a command body would be exactly the
+#                   unrecorded filesystem read design 03 §6.3 rules out.
+#   stratum-stats   `CmdHost::run_stat` on `ExecCtx` calls it directly — pure
+#                   compute over `&Frame` + `Sample`, no fs/clock, so there is
+#                   no ambient access to record and no host-trait door to build.
+#
+#   stratum-proto   ExecStatus / Diagnostic / Span / VarIdx — declared once (A10).
+#   stratum-core    THE missing-value definition and THE `%g`. A second
+#                   `is_missing` here is the bug C2 exists to prevent.
+#   stratum-data    the frame, the write barrier, `Sample`.
+#   stratum-parse   the AST this interpreter walks, plus `ExpandHost`, which
+#                   `expand_host.rs` implements.
+#   stratum-effects the `EffectTable`/`CommandRegistry` traits whose built-in
+#                   rows live in `effects_rows.rs`.
+#   rustc-hash      program table and macro-name maps. Never iterated where the
+#                   order could reach output.
+#   camino          `RuntimeHost` paths; `StaticCtx::cwd` is a `Utf8Path`.
+
+[package]
+name = "stratum-runtime"
+description = "The Stata interpreter: ExecCtx, dispatch, expression evaluation, programs and the built-in effect table."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+stratum-core = { path = "../stratum-core" }
+stratum-data = { path = "../stratum-data" }
+stratum-dta = { path = "../stratum-dta" }
+stratum-parse = { path = "../stratum-parse" }
+stratum-effects = { path = "../stratum-effects" }
+stratum-stats = { path = "../stratum-stats" }
+camino = { workspace = true }
+rustc-hash = { workspace = true }
+# W06b. CONTRACTS §2 makes `similar::capture_diff_slices` (Myers) the NORMATIVE
+# reconcile: block identity across an edit is defined by that diff, so a
+# hand-rolled LCS would be a second, silently divergent answer to the one
+# question every ExecutionRecord and every result card is keyed on. Used only by
+# `doc.rs`.
+similar = { workspace = true }
+serde = { workspace = true }
+smallvec = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+
+[lints.rust]
+# `forbid`, not `deny`: this crate walks an AST and formats text. There is no
+# kernel here that an unsafe block could make faster, and `catch_unwind` — the
+# one thing that looks like it might want one — is safe std.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

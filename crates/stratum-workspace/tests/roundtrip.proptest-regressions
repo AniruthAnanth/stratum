@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 243261e983a4892285a212d4f09a6439d1215025c8d935bbbaeb1f655be0c182 # shrinks to parts = ["di 1\r"], crlf = true, bom = false, trailing = true
+cc cc003bbb04a0a289aa5bd66b1f529c2c6097506d5a8545fabac97e6e6191aeb1 # shrinks to parts = ["sysuse auto", "di 1\r"], crlf = false, bom = false, trailing = true

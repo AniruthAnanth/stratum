@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "category": "DeveloperTool",
+    "shortDescription": "Interactive statistical IDE",
+    "longDescription": "Stratum is an interactive statistical IDE where code, data, results, reproducibility and AI understand each other.",
+    "copyright": "© 2026 Stratum contributors",
+    "icon": [
+      "../../../packaging/icons/32x32.png",
+      "../../../packaging/icons/128x128.png",
+      "../../../packaging/icons/128x128@2x.png",
+      "../../../packaging/icons/icon.ico"
+    ],
+    "externalBin": ["binaries/stratum"],
+    "resources": { "binaries/ado/base/a/auto.dta": "ado/base/a/auto.dta" },
+    "createUpdaterArtifacts": false,
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "allowDowngrades": false,
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "../../../packaging/icons/icon.ico",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma",
+        "installerHooks": "../../../packaging/windows/file-assoc.nsh"
+      },
+      "wix": {
+        "upgradeCode": "9e2a5f14-3c07-4e2a-9a6d-5b1f0f6c4e21",
+        "fragmentPaths": ["../../../packaging/windows/wix/file-assoc.wxs"],
+        "componentRefs": ["StratumFileAssociations"]
+      }
+    }
+  }
+}

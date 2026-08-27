@@ -1,0 +1,19 @@
+{
+  "abi": 1,
+  "regions": [
+    {"i": 0, "span": [0, 116], "outer": [0, 117], "kind": "brace:foreach", "entry": "cr", "exit": "cr", "lines": [0, 5], "flags": ["executable"], "hash": "f0e3701b8739873531635994cbb3a6e7", "ordinal": 0},
+    {"i": 1, "span": [117, 118], "outer": [117, 118], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [6, 6], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 0},
+    {"i": 2, "span": [118, 155], "outer": [118, 156], "kind": "brace:forvalues", "entry": "cr", "exit": "cr", "lines": [7, 9], "flags": ["executable"], "hash": "a3db33bc56adb1f4486fd8adc1a6dd31", "ordinal": 0},
+    {"i": 3, "span": [156, 157], "outer": [156, 157], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [10, 10], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 1},
+    {"i": 4, "span": [157, 214], "outer": [157, 215], "kind": "brace:if_else_chain", "entry": "cr", "exit": "cr", "lines": [11, 16], "flags": ["executable"], "hash": "50ae8c0702764d0a31e407c8058e8c44", "ordinal": 0},
+    {"i": 5, "span": [215, 216], "outer": [215, 216], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [17, 17], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 2},
+    {"i": 6, "span": [216, 255], "outer": [216, 256], "kind": "brace:capture", "entry": "cr", "exit": "cr", "lines": [18, 20], "flags": ["executable"], "hash": "94a301060f39852c95f8d0d3734a63b9", "ordinal": 0},
+    {"i": 7, "span": [256, 257], "outer": [256, 257], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [21, 21], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 3},
+    {"i": 8, "span": [257, 288], "outer": [257, 289], "kind": "brace:quietly", "entry": "cr", "exit": "cr", "lines": [22, 24], "flags": ["executable"], "hash": "64a4a8b579ad6afd85bda387fcd8e670", "ordinal": 0},
+    {"i": 9, "span": [289, 290], "outer": [289, 290], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [25, 25], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 4},
+    {"i": 10, "span": [290, 321], "outer": [290, 322], "kind": "brace:while", "entry": "cr", "exit": "cr", "lines": [26, 28], "flags": ["executable"], "hash": "4061ce52763be1a70b7b31e8a6707341", "ordinal": 0}
+  ],
+  "sections": [],
+  "narrative": [],
+  "diagnostics": []
+}

@@ -1,0 +1,17 @@
+{
+  "abi": 1,
+  "regions": [
+    {"i": 0, "span": [0, 18], "outer": [0, 19], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [0, 0], "flags": ["executable"], "hash": "d1adae54af09ad212c992bdd301487c5", "ordinal": 0},
+    {"i": 1, "span": [19, 20], "outer": [19, 20], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [1, 1], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 0},
+    {"i": 2, "span": [20, 30], "outer": [20, 31], "kind": "directive:delimit_semi", "entry": "cr", "exit": "semi", "lines": [2, 2], "flags": ["executable", "exit_semi"], "hash": "38fbc9c9ce5b7d30b5673de1215d9e7b", "ordinal": 0},
+    {"i": 3, "span": [31, 69], "outer": [31, 70], "kind": "simple", "entry": "semi", "exit": "semi", "lines": [3, 6], "flags": ["executable", "exit_semi"], "hash": "fe8a5505af7a262ebe0e4f4a1daaf6e7", "ordinal": 0},
+    {"i": 4, "span": [71, 201], "outer": [70, 202], "kind": "simple", "entry": "semi", "exit": "semi", "lines": [7, 10], "flags": ["executable", "estimation", "exit_semi"], "hash": "692a77050066f30ab5fdd22592eb59ca", "ordinal": 0},
+    {"i": 5, "span": [203, 214], "outer": [202, 215], "kind": "directive:delimit_cr", "entry": "semi", "exit": "cr", "lines": [11, 11], "flags": ["executable"], "hash": "21da49afe45d613597248828b2624ea8", "ordinal": 0},
+    {"i": 6, "span": [215, 216], "outer": [215, 216], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [12, 12], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 1},
+    {"i": 7, "span": [216, 231], "outer": [216, 232], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [13, 13], "flags": ["executable"], "hash": "1135bcb72d3f63673ca9c386b333c39f", "ordinal": 0},
+    {"i": 8, "span": [232, 245], "outer": [232, 246], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [14, 14], "flags": ["executable"], "hash": "199ab0a2e431dfee8b95edef37c49d87", "ordinal": 0}
+  ],
+  "sections": [],
+  "narrative": [],
+  "diagnostics": []
+}

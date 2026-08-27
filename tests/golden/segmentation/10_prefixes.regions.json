@@ -1,0 +1,14 @@
+{
+  "abi": 1,
+  "regions": [
+    {"i": 0, "span": [0, 31], "outer": [0, 32], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [0, 0], "flags": ["executable"], "hash": "5faa28484882a5d43e1ba284921f921c", "ordinal": 0},
+    {"i": 1, "span": [32, 64], "outer": [32, 65], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [1, 1], "flags": ["executable"], "hash": "5c5077765faf3d032b20cddbe0fa0869", "ordinal": 0},
+    {"i": 2, "span": [65, 91], "outer": [65, 92], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [2, 2], "flags": ["executable", "estimation"], "hash": "8025a194551d7c1b6215f1c1b92a2abd", "ordinal": 0},
+    {"i": 3, "span": [92, 128], "outer": [92, 129], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [3, 3], "flags": ["executable"], "hash": "9892ca6ab140e8c47a88f27d4d19b9f0", "ordinal": 0},
+    {"i": 4, "span": [129, 144], "outer": [129, 145], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [4, 4], "flags": ["executable", "macro_in_head"], "hash": "4b4c7842872f4b899a5ca7d6de74d4cb", "ordinal": 0},
+    {"i": 5, "span": [145, 157], "outer": [145, 158], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [5, 5], "flags": ["executable"], "hash": "7c2330c6dfe4a93e63d112b2ecc2acc7", "ordinal": 0}
+  ],
+  "sections": [],
+  "narrative": [],
+  "diagnostics": []
+}

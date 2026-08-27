@@ -1,0 +1,46 @@
+{
+  // 06 §1: TypeScript `strict` + `noUncheckedIndexedAccess`. The second flag is
+  // not decoration — this frontend indexes typed-array views over untrusted
+  // engine bytes (`ipc/hand.ts`) and a Fenwick tree over log chunks, and both
+  // are places where an out-of-range read must be a compile error rather than
+  // an `undefined` that reaches a renderer.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "types": ["vite/client", "node"],
+
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    // Deliberately NOT `noPropertyAccessFromIndexSignature`. 06 §1 asks for
+    // `strict` + `noUncheckedIndexedAccess`, and those two are load-bearing:
+    // this frontend indexes typed-array views over untrusted engine bytes. A
+    // third flag beyond the specification would fail other units' files for a
+    // reason nothing in the design asked for, and one tsconfig covers `src/`.
+    //
+    // `biome.json` turns `complexity/useLiteralKeys` off for the mirror-image
+    // reason, and it cannot say so itself because biome.json is strict JSON.
+    // Much of this codebase narrows untrusted shapes — a layout JSON the user
+    // hand-edited, a DOMStringMap, an SDP1 header — and bracket access on an
+    // index signature is the honest spelling there; the rule cannot tell that
+    // from a genuine literal-key mistake.
+    "exactOptionalPropertyTypes": false,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "vite.config.ts"]
+}

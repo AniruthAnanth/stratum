@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" data-role="main">
+  <head>
+    <meta charset="utf-8" />
+    <!-- No `viewport` meta: this is a desktop webview at device scale, and a
+         viewport tag is how a desktop app starts behaving like a mobile page. -->
+    <title>Stratum</title>
+    <!-- The packaged CSP (CONTRACTS §10.2) is `script-src 'self'`, so every
+         script is a module file. Nothing is inline, here or anywhere. -->
+    <script type="module" src="/src/boot/main.tsx"></script>
+  </head>
+  <body>
+    <!-- Painted before the bundle evaluates so the first frame is the app's own
+         ground, not white. 06 §15.1 budgets 400 ms to an interactive shell; a
+         white flash inside that window is the single most "web app" artefact a
+         desktop tool can ship. -->
+    <div id="root" class="stratum-root"></div>
+    <noscript>Stratum requires JavaScript in its webview.</noscript>
+  </body>
+</html>

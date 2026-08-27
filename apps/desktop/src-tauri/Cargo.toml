@@ -1,0 +1,84 @@
+# stratum-desktop — the Tauri v2 host process (plan W17).
+#
+# W07's `engine_host.rs`, `transport.rs` and `mock_engine.rs` live in this
+# directory and are consumed by `ipc.rs`/`windows.rs`; the `#[allow(dead_code)]`
+# scaffolding the placeholder `main.rs` carried is gone because the modules are
+# now genuinely reached from the command surface.
+#
+# LAYERING (ARCHITECTURE §8.2, enforced by `cargo xtask layering`): this crate
+# must NOT depend on stratum-runtime, -exec, -session, -parse, -stats, -graph,
+# -data, -dta, -core, -effects or -difftest. The engine is out of process; a bug
+# in it must be physically unable to crash the UI. Everything below is either
+# the wire contract (stratum-proto), the platform adapter layer (W10/W24), or
+# host plumbing.
+#
+# `unsafe_code` must NOT be forbidden or denied. There are four documented
+# `unsafe` sites: two in `engine_host::orphan::configure` (`pre_exec` +
+# `PR_SET_PDEATHSIG`, async-signal-safe, SAFETY comment in place), one
+# `libc::kill(pid, 0)` liveness probe, and `memmap2::Mmap::map` in
+# `transport.rs` / `MmapMut::map_mut` in `mock_engine.rs`.
+
+[package]
+name = "stratum-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "stratum-desktop"
+path = "src/main.rs"
+
+[features]
+# Tauri's own dev/packaged switch: WITHOUT this feature a build is `cfg(dev)`
+# and loads `build.devUrl` (the vite server on :1420); WITH it the context
+# embeds `frontendDist` and serves it over the custom protocol. `tauri build`
+# turns it on; `tauri dev` leaves it off. Measured, not assumed: a debug
+# binary without it renders nothing unless a dev server happens to be running.
+custom-protocol = ["tauri/custom-protocol"]
+# ADR-011: the e2e control surface. OFF in every shipped build. The gate is on
+# `e2e_cmds::tauri_surface`, not on the module: the ~450 non-Tauri lines and
+# their tests compile unconditionally so they are never green in nobody's CI.
+# `xtask e2e --check-fence` greps a built binary for the fenced command names
+# and fails when a build without this feature contains them.
+#
+# Implies `custom-protocol`: the harness launches this binary on CI runners
+# with no dev server, so an e2e build must carry its own frontend.
+e2e = ["custom-protocol"]
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+stratum-proto = { path = "../../../crates/stratum-proto" }
+# The platform adapter layer (08 §5): menu model + accelerator resolution,
+# credential backend naming, reveal/open-external. Selected per-OS by -host.
+stratum-platform = { path = "../../../crates/stratum-platform" }
+stratum-platform-host = { path = "../../../crates/stratum-platform-host" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+rmp-serde = { workspace = true }
+camino = { workspace = true }
+thiserror = { workspace = true }
+memmap2 = { workspace = true }
+tokio = { workspace = true }
+tauri = { workspace = true }
+mimalloc = { workspace = true }
+# Asset-token entropy (CONTRACTS §10.2's OnceLock<[u8; 32]>). Small, audited,
+# already in the tree transitively through the tauri stack.
+getrandom = "0.3"
+
+# Orphan prevention, parent half: `process_group`, `PR_SET_PDEATHSIG`, `killpg`.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+# NOTE the deliberate absence of `unsafe_code = "forbid"`; see the header.
+[lints.clippy]
+all = { level = "warn", priority = -1 }

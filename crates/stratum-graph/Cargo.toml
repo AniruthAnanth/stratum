@@ -1,0 +1,67 @@
+# ARCHITECTURE.md §5: "Graph model → SVG. Scheme colours come from
+# `stratum_tokens::SCHEMES` (**compiled in**, never read from disk — A14). v1
+# scope: `histogram`, `twoway scatter|line|connected|bar|rcap`, `graph box|bar`."
+# The design note is docs/design/09-graph.md (W19's first deliverable).
+#
+# The dependency list is three entries long and the SHORTNESS is the point.
+# ARCHITECTURE §8.14 asserts this crate does no path resolution, because
+# `stratum run` has to draw the same figure on a build server with no `apps/`
+# directory anywhere on it. Every dependency added here is a dependency of every
+# graph render, so:
+#
+#   stratum-tokens  the schemes, compiled in (A14/C47). No dependencies of its
+#                   own, `#![no_std]`, which is why linking it cannot smuggle a
+#                   filesystem in behind this crate's back.
+#   stratum-core    `missing` (the observation-drop rule), `fmt::fmt_g` (axis
+#                   labels are user-visible numbers — C12, §8.7) and `math`
+#                   (log10/powf for the tick rule; §8.11 bans std's).
+#   stratum-data    `Column::gather_f64` + `Sample` — the seam where a frame
+#                   becomes a series. Nothing else in the crate touches a frame.
+#
+# NOT taken: `stratum-proto`. `GraphRef` is a wire type whose asset URL is keyed
+# by SessionId/ResultId, and this crate knows about neither — it renders, the
+# runtime addresses (design note §1). And no PNG/deflate crate: the raster
+# fallback's encoder is ~300 lines here (note §7) and a `png` dependency would
+# pull `miniz_oxide` into the CLI for a path most runs never take.
+
+[package]
+name = "stratum-graph"
+description = "Stratum's headless statistical graphics: a GraphSpec becomes an SVG, with no filesystem and no fonts."
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+stratum-core = { path = "../stratum-core", default-features = false }
+stratum-data = { path = "../stratum-data", default-features = false }
+stratum-tokens = { path = "../stratum-tokens" }
+
+[dev-dependencies]
+# The only test-side dependency, and it earns its place: `coord.rs`'s ten-byte
+# ceiling is what the whole pre-emission raster decision is budgeted against, and
+# a ceiling checked at six hand-picked values is a ceiling nobody should bet a
+# byte budget on.
+proptest = { workspace = true }
+# TEST ONLY, and deliberately not a normal dependency. The design note §1 says
+# `GraphRender` carries one field per `GraphRef` field so the runtime's
+# construction is a copy that cannot lose one — and a sentence in a doc comment
+# does not fail a build when someone adds a sixth field to `GraphRef`. A test
+# that destructures both exhaustively does. `cargo xtask layering` walks NORMAL
+# dependency edges only (`xtask/src/layering.rs`, `dev_dependencies_are_not_edges`),
+# so this does not put proto in the graph crate's dependency graph, and the
+# renderer still knows nothing about a `SessionId` or a URL.
+stratum-proto = { path = "../stratum-proto" }
+
+[lints.rust]
+# Same rule as stratum-core: everything here is arithmetic and string building,
+# and an `unsafe` fast path in the rasteriser would buy a few percent on a code
+# path that runs once per figure.
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

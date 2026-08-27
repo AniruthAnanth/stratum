@@ -1,0 +1,21 @@
+{
+  "abi": 1,
+  "regions": [
+    {"i": 0, "span": [0, 137], "outer": [0, 137], "kind": "trivia:marker", "entry": "cr", "exit": "cr", "lines": [0, 5], "flags": ["section_head"], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 0},
+    {"i": 1, "span": [137, 155], "outer": [137, 156], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [6, 6], "flags": ["executable"], "hash": "d1adae54af09ad212c992bdd301487c5", "ordinal": 0},
+    {"i": 2, "span": [156, 237], "outer": [156, 237], "kind": "trivia:marker", "entry": "cr", "exit": "cr", "lines": [7, 12], "flags": ["section_head"], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 1},
+    {"i": 3, "span": [237, 254], "outer": [237, 255], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [13, 13], "flags": ["executable", "estimation"], "hash": "dce369ddf9d6e1dd33e67364ebc4f8af", "ordinal": 0},
+    {"i": 4, "span": [255, 256], "outer": [255, 256], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [14, 14], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 2},
+    {"i": 5, "span": [295, 310], "outer": [256, 311], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [16, 16], "flags": ["executable"], "hash": "1135bcb72d3f63673ca9c386b333c39f", "ordinal": 0}
+  ],
+  "sections": [
+    {"span": [0, 220], "id": 0, "title": [6, 11], "line": 0},
+    {"span": [220, 311], "id": 1, "title": [228, 233], "line": 12}
+  ],
+  "narrative": [
+    {"span": [13, 136], "kind": "line"},
+    {"span": [157, 219], "kind": "block"},
+    {"span": [256, 295], "kind": "line"}
+  ],
+  "diagnostics": []
+}

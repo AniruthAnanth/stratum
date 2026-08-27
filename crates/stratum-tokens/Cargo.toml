@@ -1,0 +1,31 @@
+# ARCHITECTURE.md §5: "Generated from the root `design/tokens.json` by `xtask
+# tokens`; `src/generated.rs` is **committed** and CI-diffed. No logic."
+#
+# The empty `[dependencies]` table is the load-bearing part. `stratum-graph`
+# links this crate and CI asserts that graph does no path resolution
+# (ARCHITECTURE §8.14); a dependency here is a dependency of every graph render,
+# so the table stays empty and the crate stays `#![no_std]`.
+
+[package]
+name = "stratum-tokens"
+description = "The Stratum design system as compile-time constants."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+# The generated module is data; `pub const` items there carry the `use` string
+# from design/tokens.json as their doc comment when the token has one and no doc
+# comment at all when it does not, so `missing_docs` above is a warning and not
+# an error here.
+all = { level = "warn", priority = -1 }

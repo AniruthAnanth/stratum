@@ -1,0 +1,730 @@
+# Stratum — machine-readable file ownership manifest (R0, ARCHITECTURE §8.13).
+#
+# Transcribed VERBATIM from docs/IMPLEMENTATION_PLAN.md §8, which is the prose
+# authority. If the two disagree, the plan wins and this file is the bug.
+#
+# ONE DECLARED DIVERGENCE from §8, pending an ARCHITECT amendment. §8 enumerates
+# what the 27 work units will *create*. It does not account for the design-phase
+# reference corpus committed before the plan was written, so §8's claim to be
+# "the complete partition" is false against the tree — and the check below reads
+# the tree, not the table, which is why it reported 17 files owned by nobody.
+# They are assigned to the unit whose declared scope already covers them; each
+# addition carries a `# not in §8` marker. Putting them under [unowned] was the
+# wrong fix: a golden oracle that must be regenerated when Stata's output moves
+# is precisely a file that needs a named owner.
+#
+#   tests/fixtures/dta/**       -> W03   the .dta corpus its reader is built
+#                                        against; same shape as W07 owning
+#                                        tests/fixtures/mock/** and W00 owning
+#                                        tests/fixtures/sdp1/**
+#   scripts/capture-golden.sh   -> W23   Stata-invoking capture tooling, beside
+#   scripts/stata_diff.py                the scripts/run-stata.sh it owns already
+#   tests/golden/README.md      -> W23   "Difftest harness and goldens": these
+#   tests/golden/stata18/**              logs are the committed Stata output its
+#                                        acceptance is written against
+#
+# `tests/golden/segmentation/**` stays W11b's. The two new globs are enumerated
+# narrowly rather than carved out of a `tests/golden/**` with `exclude`, because
+# §8.2 prescribes enumeration and §8 declares exactly one exclusion.
+# [meta.counts] therefore reads 200 exact / 75 globs, not §8's 197 / 73.
+#
+# `cargo xtask ownership` is a required PR check. It reads this file, expands
+# every pattern against the tracked working tree, and fails if any tracked file
+# is claimed by two units or by none. R0 becomes a test rather than a promise.
+#
+# ===========================================================================
+# SCHEMA (version 1) — the checker codes against exactly this.
+# ===========================================================================
+#
+#   schema = 1                    Integer. Bump only on a breaking shape change.
+#
+#   [meta]                        Provenance. Informational; no checker behaviour
+#     source          String      depends on it.
+#     generated_from  String
+#     counts          Table       { owners, exact_paths, globs } — the plan's own
+#                                 verified totals, for a cheap self-check.
+#
+#   [[unit]]                      One entry per OWNER. Order is not significant;
+#                                 `id` is the primary key and must be unique.
+#     id       String  required   "W00".."W26", "W06a".."W06c", or "ARCHITECT".
+#     title    String  optional   Human label. Never matched against.
+#     owns     [String] required  Repo-relative patterns. May be empty only if
+#                                 the unit genuinely owns nothing.
+#     exclude  [String] optional  Repo-relative patterns carved OUT of this
+#                                 unit's `owns`. Default []. A file matched by
+#                                 both `owns` and `exclude` is NOT owned by this
+#                                 unit and must be claimed by some other unit.
+#
+#   [unowned]                     IMPLEMENTATION_PLAN §8.1.
+#     paths    [String] required  Patterns that are legitimately owned by nobody.
+#                                 A tracked file matching one of these is neither
+#                                 an error nor a claim.
+#
+# PATTERN SEMANTICS (normative — the checker must implement exactly this):
+#
+#   * Patterns are repo-relative, `/`-separated, never absolute, never leading
+#     `./`, and never contain `\`. Compare against paths as `git ls-files`
+#     prints them.
+#   * Matching uses the `glob` crate's `Pattern` with
+#     `MatchOptions { case_sensitive: true, require_literal_separator: true,
+#                     require_literal_leading_dot: false }`.
+#     So `*` and `?` do NOT cross `/`; `**` does; and a pattern beginning `.`
+#     (e.g. `.github/workflows/ci.yml`) matches a dotfile.
+#   * A pattern with no metacharacter is an EXACT path: it names one file rather
+#     than a set, so an exact path matching no tracked file is reported by name.
+#     Its SEVERITY is governed by `[meta] complete`, not by the pattern shape.
+#     While the tree is incomplete, "claimed but not tracked" cannot be told
+#     apart from "not written yet" — §8 enumerates what the 27 units WILL create
+#     — so the checker reports it and continues. Once `complete = true`, the same
+#     condition is exactly the rename-silently-unowns-a-file bug and is an error.
+#     `--strict-paths` forces that reading early. Globs are allowed to match
+#     nothing under either setting and are always a WARNING.
+#
+#     Two conditions are fatal with no flag and no setting, because
+#     ARCHITECTURE §8.13 makes only these two fatal: a tracked file claimed by
+#     two units, and a tracked file claimed by none.
+#   * `dir/**` matches every file at any depth under `dir/`. It does NOT match
+#     `dir` itself (git tracks files, not directories).
+#   * Untracked files are skipped entirely (§8.1): a build artifact never trips
+#     the check. Use `git ls-files` — not a filesystem walk — as the input set.
+#     `--include-untracked` is the one opt-in past this, and it is a PREFLIGHT,
+#     not a second reading of §8.1: it adds `git ls-files --others
+#     --exclude-standard` (so `.gitignore` still decides what an artifact is),
+#     attributes those files exactly as above, and prints the verdict in its own
+#     `preflight —` section that never changes the exit code. During a parallel
+#     wave most of the tree is written and uncommitted, and the tracked-only
+#     answer is then both too quiet — it certifies a partition over whatever
+#     minority is in the index — and too loud, because a file finished on disk
+#     is reported as "claimed but not tracked". The alternative people reach for
+#     is to copy the tree, `git init`, `git add -A` and check that, which also
+#     stages every scratch file lying around and calls it an R0 violation. That
+#     is what happened in wave 1 (a root `sync.sh` nobody was going to commit).
+#     Ask in place instead: `cargo xtask ownership --include-untracked`.
+#
+# CHECK ALGORITHM:
+#
+#   1. Build the tracked set with `git ls-files`.
+#   2. Drop every path matching an `[unowned]` pattern.
+#   3. For each remaining path, collect every unit whose `owns` matches it and
+#      whose `exclude` does not.
+#   4. len(claims) == 0  -> error "unowned".
+#      len(claims) >  1  -> error "claimed by {units}".
+#      len(claims) == 1  -> ok.
+#   5. Separately, error on any duplicate `unit.id`, and on any exact `owns`
+#      path that matched nothing.
+#
+# `xtask ownership` ships with a negative test: adding a path to two units'
+# globs, or to none, must fail it (IMPLEMENTATION_PLAN W00 acceptance).
+# ===========================================================================
+
+schema = 1
+
+[meta]
+source = "docs/IMPLEMENTATION_PLAN.md §8"
+generated_from = "IMPLEMENTATION_PLAN.md §8 owner table, transcribed verbatim"
+
+# Does the tree contain every file §8 enumerates? W00 is the only landed unit,
+# so no. FLIP THIS TO `true` WHEN THE LAST WORK UNIT LANDS: an exact path that
+# matches nothing then stops being "not written yet" and becomes the
+# rename-silently-unowns-a-file bug the exact-path rule exists to catch.
+complete = false
+
+[meta.counts]
+# The plan's verified totals (34 / 197 / 73), plus the six patterns of the
+# declared divergence above, plus the two ARCHITECT amendments of 2026-08-22
+# (`apps/desktop/pnpm-lock.yaml`, `apps/desktop/src/ipc/hand.test.ts`), both
+# exact and both W12's, plus `crates/stratum-parse/fuzz/{Cargo.toml,.gitignore}`
+# (W04, repair round 1 — see the comments on them), plus the SITE unit of
+# 2026-08-23 (`site/**` glob, `.github/workflows/site.yml` exact). `xtask
+# ownership` asserts these as a transcription check; they are not a constraint
+# on the tree.
+owners = 35
+exact_paths = 211
+globs = 76
+
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "ARCHITECT"
+title = "Canonical documents — spec, architecture, contracts, plan, design notes"
+owns = [
+  # Licence text for the public repository (ARCHITECT: a product decision).
+  "LICENSE",
+  # The public-tree builder: the architect decides what ships publicly.
+  "scripts/publish-tree.sh",
+  "docs/ARCHITECTURE.md",
+  "docs/CONTRACTS.md",
+  "docs/IMPLEMENTATION_PLAN.md",
+  "docs/PRODUCT_SPEC.md",
+  "docs/benchmarks/**",
+  "README.md",
+  "docs/design/01-framework-selection.md",
+  "docs/design/02-stata-language.md",
+  "docs/design/03-execution-state-model.md",
+  "docs/design/04-data-engine-dta.md",
+  "docs/design/05-statistics.md",
+  "docs/design/06-ui-architecture.md",
+  "docs/design/07-ai-integration.md",
+  "docs/design/08-platform-packaging-ci.md",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W00"
+title = "Workspace skeleton, stratum-proto, tokens, shared fixtures"
+owns = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "rust-toolchain.toml",
+  "rustfmt.toml",
+  "clippy.toml",
+  "taplo.toml",
+  "deny.toml",
+  ".cargo/config.toml",
+  ".cargo/audit.toml",
+  ".config/nextest.toml",
+  ".gitignore",
+  ".gitattributes",
+  "DECISIONS.md",
+  "docs/ownership.toml",
+  "crates/stratum-proto/**",
+  "crates/stratum-tokens/**",
+  "crates/stratum-workspace-hack/**",
+  "design/tokens.json",
+  "apps/desktop/resources/tokens.generated.css",
+  "xtask/Cargo.toml",
+  "xtask/src/main.rs",
+  "xtask/src/layering.rs",
+  "xtask/src/ownership.rs",
+  "xtask/src/tokens.rs",
+  "xtask/src/sdp1.rs",
+  "xtask/src/normalize_ndjson.rs",
+  "xtask/src/csp_check.rs",
+  "xtask/src/conformance.rs",
+  "tests/fixtures/sdp1/**",
+  ".github/workflows/ci.yml",
+  "scripts/check-topology.sh",
+  "templates/gitignore-stratum",
+]
+# The single declared exception in the whole partition
+# (IMPLEMENTATION_PLAN §8): W07 owns the framing types that live inside
+# stratum-proto, because the codec and the wire envelope are one unit of
+# work and splitting them would put the frame header in a crate that
+# cannot test it.
+exclude = [
+  "crates/stratum-proto/src/frame.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W01"
+title = "stratum-core"
+owns = [
+  "crates/stratum-core/**",
+  "tests/data/fmt_corpus.jsonl",
+  "tests/data/dist_grid.json",
+  "scripts/gen-fmt-corpus.do",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W02"
+title = "stratum-data, columns / frames / journal / sort"
+owns = [
+  "crates/stratum-data/src/lib.rs",
+  "crates/stratum-data/src/version.rs",
+  "crates/stratum-data/src/column.rs",
+  "crates/stratum-data/src/chunk.rs",
+  "crates/stratum-data/src/journal.rs",
+  "crates/stratum-data/src/variable.rs",
+  "crates/stratum-data/src/labels.rs",
+  "crates/stratum-data/src/chars.rs",
+  "crates/stratum-data/src/frame.rs",
+  "crates/stratum-data/src/frames.rs",
+  "crates/stratum-data/src/sample.rs",
+  "crates/stratum-data/src/sortkey.rs",
+  "crates/stratum-data/src/sort.rs",
+  "crates/stratum-data/src/bitset.rs",
+  "crates/stratum-data/src/perf.rs",
+  "crates/stratum-data/tests/sample.rs",
+  "crates/stratum-data/tests/sort.rs",
+  "crates/stratum-data/tests/cow.rs",
+  "crates/stratum-data/tests/journal.rs",
+  "crates/stratum-data/benches/transpose.rs",
+  "crates/stratum-data/benches/sort.rs",
+  "crates/stratum-data/benches/widen.rs",
+  "crates/stratum-data/benches/journal.rs",
+  "crates/stratum-data/Cargo.toml",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W02b"
+title = "stratum-data, groups / weights / strL / views / paging"
+owns = [
+  "crates/stratum-data/src/weights.rs",
+  "crates/stratum-data/src/bygroup.rs",
+  "crates/stratum-data/src/view.rs",
+  "crates/stratum-data/src/order.rs",
+  "crates/stratum-data/src/page.rs",
+  "crates/stratum-data/src/strl.rs",
+  "crates/stratum-data/tests/bygroup.rs",
+  "crates/stratum-data/tests/page.rs",
+  "crates/stratum-data/tests/order.rs",
+  "crates/stratum-data/tests/strl.rs",
+  "crates/stratum-data/benches/page.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W03"
+title = "stratum-dta + the threat model"
+owns = [
+  "crates/stratum-dta/**",
+  "docs/THREAT_MODEL.md",
+  "tests/fixtures/dta/**", # not in §8 — see header
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W04"
+title = "stratum-parse, scanner and segmenter"
+owns = [
+  "crates/stratum-parse/Cargo.toml",
+  "crates/stratum-parse/src/lib.rs",
+  "crates/stratum-parse/src/spanmap.rs",
+  "crates/stratum-parse/src/lineindex.rs",
+  "crates/stratum-parse/src/scan/**",
+  "crates/stratum-parse/src/canon.rs",
+  "crates/stratum-parse/src/ast/mod.rs",
+  "crates/stratum-parse/src/ast/command.rs",
+  "crates/stratum-parse/src/cmdsig.rs",
+  "crates/stratum-parse/tests/segment/**",
+  "crates/stratum-parse/tests/segment.rs",
+  "crates/stratum-parse/tests/resegment.rs",
+  "crates/stratum-parse/tests/canon.rs",
+  "crates/stratum-parse/fuzz/fuzz_targets/fuzz_segment.rs",
+  # The manifest `cargo fuzz` reads. W04 and W04b each left a NOTE FOR THE
+  # ARCHITECT in a fuzz target refusing to create it while it was claimed by
+  # nobody — a tracked file owned by nobody is exactly what the check below
+  # fails on, so the two units were correctly deadlocked. Assigned to W04
+  # because W04 already owns `crates/stratum-parse/Cargo.toml`, and one unit
+  # owning both of a crate's manifests is the same rule that gives W00
+  # `xtask/Cargo.toml`. Added in repair round 1 by the workspace fix agent, in
+  # the same crossing into W00's files as `mod e2e;` in `xtask/src/main.rs`;
+  # both are recorded in that agent's return for ratification.
+  "crates/stratum-parse/fuzz/Cargo.toml",
+  # `cargo fuzz`'s output directories plus that package's own lockfile. Local
+  # and not entries in the root `.gitignore`, which is W00's file and which no
+  # other unit has had to touch for its build output either.
+  "crates/stratum-parse/fuzz/.gitignore",
+  "crates/stratum-parse/benches/segment.rs",
+  "crates/stratum-effects/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W04b"
+title = "stratum-parse, macros / lexer / parser / tables"
+owns = [
+  "crates/stratum-parse/src/macros/**",
+  "crates/stratum-parse/src/lex/**",
+  "crates/stratum-parse/src/ast/expr.rs",
+  "crates/stratum-parse/src/ast/varlist.rs",
+  "crates/stratum-parse/src/parse/**",
+  "crates/stratum-parse/src/cmdtable.rs",
+  "crates/stratum-parse/build.rs",
+  "crates/stratum-parse/data/**",
+  "crates/stratum-parse/src/varlist.rs",
+  "crates/stratum-parse/src/lints/**",
+  "crates/stratum-parse/tests/macro.rs",
+  "crates/stratum-parse/tests/expr.rs",
+  "crates/stratum-parse/tests/parse.rs",
+  "crates/stratum-parse/tests/varlist.rs",
+  "crates/stratum-parse/tests/lints.rs",
+  "crates/stratum-parse/fuzz/fuzz_targets/fuzz_expand.rs",
+  "crates/stratum-parse/fuzz/fuzz_targets/fuzz_parse.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W05"
+title = "stratum-stats"
+owns = [
+  "crates/stratum-stats/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W06a"
+title = "stratum-runtime — interpreter, dispatch, evaluation (agent scope of W06)"
+owns = [
+  "crates/stratum-runtime/Cargo.toml",
+  "crates/stratum-runtime/src/lib.rs",
+  "crates/stratum-runtime/src/ctx.rs",
+  # The engine edge: the shipping RuntimeHost and run_stat's back half.
+  "crates/stratum-runtime/src/host.rs",
+  "crates/stratum-runtime/src/stat_glue.rs",
+  "crates/stratum-runtime/src/dispatch.rs",
+  "crates/stratum-runtime/src/eval.rs",
+  "crates/stratum-runtime/src/scope.rs",
+  "crates/stratum-runtime/src/program.rs",
+  "crates/stratum-runtime/src/syntax_cmd.rs",
+  "crates/stratum-runtime/src/expand_host.rs",
+  "crates/stratum-runtime/src/effects_rows.rs",
+  "crates/stratum-runtime/src/extract.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W06b"
+title = "stratum-runtime — state, footprints, SMCL, document model (agent scope of W06)"
+owns = [
+  "crates/stratum-runtime/src/state/**",
+  "crates/stratum-runtime/src/footprint.rs",
+  "crates/stratum-runtime/src/smcl.rs",
+  "crates/stratum-runtime/src/doc.rs",
+  "crates/stratum-runtime/src/snapshot.rs",
+  "crates/stratum-runtime/src/results.rs",
+  "crates/stratum-runtime/tests/barrier.rs",
+  "crates/stratum-runtime/tests/fingerprint.rs",
+  "crates/stratum-runtime/tests/reconcile.rs",
+  "crates/stratum-runtime/tests/smcl.rs",
+  "crates/stratum-runtime/tests/snapshot.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W06c"
+title = "stratum-runtime — built-in command surface (agent scope of W06)"
+owns = [
+  "crates/stratum-runtime/src/cmd/**",
+  "crates/stratum-runtime/tests/cmd_surface.rs",
+  "crates/stratum-runtime/tests/settings.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W07"
+title = "Transport, supervisor, and the MOCK ENGINE"
+owns = [
+  "crates/stratum-proto/src/frame.rs",
+  "apps/desktop/src-tauri/src/engine_host.rs",
+  "apps/desktop/src-tauri/src/transport.rs",
+  "apps/desktop/src-tauri/src/mock_engine.rs",
+  "tests/fixtures/mock/**",
+  "crates/stratum-cli/src/serve/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W08b"
+title = "stratum-session"
+owns = [
+  "crates/stratum-session/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W08"
+title = "stratum-exec"
+owns = [
+  "crates/stratum-exec/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W09"
+title = "stratum-cli"
+owns = [
+  "crates/stratum-cli/Cargo.toml",
+  "crates/stratum-cli/src/main.rs",
+  "crates/stratum-cli/src/cli.rs",
+  "crates/stratum-cli/src/cmd/**",
+  "crates/stratum-cli/src/output/**",
+  "tests/smoke/**",
+  "tests/conformance/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W10"
+title = "stratum-platform + macOS impl"
+owns = [
+  "crates/stratum-platform/**",
+  "crates/stratum-platform-macos/**",
+  "crates/stratum-platform-host/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W11a"
+title = "wasm harness and the TS segmenter interface"
+owns = [
+  "crates/stratum-wasm/Cargo.toml",
+  "crates/stratum-wasm/src/lib.rs",
+  "apps/desktop/src/wasm/**",
+  "xtask/src/wasm.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W11b"
+title = "stratum-wasm bindings and the parity gate"
+owns = [
+  "crates/stratum-wasm/src/engine.rs",
+  "crates/stratum-wasm/src/regions.rs",
+  "crates/stratum-wasm/src/tokens.rs",
+  "crates/stratum-wasm/src/complete.rs",
+  "crates/stratum-wasm/src/env.rs",
+  "crates/stratum-wasm/tests/**",
+  "crates/stratum-wasm/benches/**",
+  "tests/golden/segmentation/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W12"
+title = "Frontend shell"
+owns = [
+  "apps/desktop/package.json",
+  # The lockfile is a committed build input, not a generated artifact: pnpm
+  # writes it on the first install and CI installs with --frozen-lockfile. It
+  # belongs to whoever owns package.json. ARCHITECT amendment, 2026-08-22,
+  # raised by the wave-1 gate — W12 could not add it itself because this
+  # manifest is W00's file.
+  "apps/desktop/pnpm-lock.yaml",
+  "apps/desktop/vite.config.ts",
+  "apps/desktop/tsconfig.json",
+  "apps/desktop/biome.json",
+  "apps/desktop/index.html",
+  "apps/desktop/pane.html",
+  "apps/desktop/src/boot/**",
+  "apps/desktop/src/platform/**",
+  "apps/desktop/src/ipc/hand.ts",
+  # Colocated vitest file for the line above. Every other W12 test file falls
+  # inside a `**` glob (`src/boot/`, `src/dock/`, `src/keys/`, `src/platform/`,
+  # `src/styles/`); `src/ipc/` is the one directory §8 enumerates file-by-file,
+  # so the idiom the rest of the frontend already uses left this one file
+  # unowned. Amended as an exact path, not as `src/ipc/**`, because a glob here
+  # would pre-claim a directory §8 deliberately did not hand W12 wholesale.
+  # ARCHITECT amendment, 2026-08-22, raised by the wave-1 gate — W12 could not
+  # add it itself because this manifest is W00's file.
+  "apps/desktop/src/ipc/hand.test.ts",
+  "apps/desktop/src/state/doc.ts",
+  "apps/desktop/src/state/vars.ts",
+  "apps/desktop/src/state/history.ts",
+  "apps/desktop/src/state/layout.ts",
+  "apps/desktop/src/state/settings.ts",
+  "apps/desktop/src/state/results.ts",
+  "apps/desktop/src/state/session.ts",
+  "apps/desktop/src/dock/**",
+  "apps/desktop/src/keys/**",
+  "apps/desktop/resources/layouts/**",
+  "apps/desktop/resources/keymaps/**",
+  "apps/desktop/src/styles/**",
+  "apps/desktop/src/ui/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W13"
+title = "Editor"
+owns = [
+  "apps/desktop/src/editor/**",
+  "apps/desktop/src/panes/sections/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W14"
+title = "Result renderers"
+owns = [
+  "apps/desktop/src/renderers/**",
+  "apps/desktop/src/panes/results/**",
+  "apps/desktop/src/panes/compare/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W15"
+title = "Execution-state UI"
+owns = [
+  "apps/desktop/src/state/exec.ts",
+  "apps/desktop/src/panes/repro/**",
+  "apps/desktop/src/components/**",
+  "tests/e2e/scenario_b.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W16"
+title = "Classic layout"
+owns = [
+  "apps/desktop/src/panes/history/**",
+  "apps/desktop/src/panes/variables/**",
+  "apps/desktop/src/panes/properties/**",
+  "apps/desktop/src/panes/project/**",
+  "apps/desktop/src/panes/viewer/**",
+  "apps/desktop/src/commandbar/**",
+  "apps/desktop/src/log/**",
+  "tests/e2e/scenario_c.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W17"
+title = "Desktop host wiring + Scenario A"
+owns = [
+  "apps/desktop/src-tauri/Cargo.toml",
+  "apps/desktop/src-tauri/build.rs",
+  "apps/desktop/src-tauri/tauri.conf.json",
+  "apps/desktop/src-tauri/src/main.rs",
+  "apps/desktop/src-tauri/src/ipc.rs",
+  # OS file-open (.do to the editor, .dta through `use`).
+  "apps/desktop/src-tauri/src/file_open.rs",
+  "apps/desktop/src-tauri/src/menu.rs",
+  "apps/desktop/src-tauri/src/asset.rs",
+  "apps/desktop/src-tauri/src/windows.rs",
+  "apps/desktop/src-tauri/src/heartbeat.rs",
+  "apps/desktop/src-tauri/capabilities/**",
+  "apps/desktop/src-tauri/tests/**",
+  "tests/e2e/scenario_a.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W18"
+title = "Data Editor"
+owns = [
+  "apps/desktop/src/grid/**",
+  "apps/desktop/src/panes/dataeditor/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W19"
+title = "stratum-graph (minimum viable)"
+owns = [
+  "crates/stratum-graph/**",
+  "apps/desktop/src/panes/graphs/**",
+  "docs/design/09-graph.md",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W20"
+title = "stratum-intel"
+owns = [
+  "crates/stratum-intel/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W21"
+title = "stratum-ai"
+owns = [
+  "crates/stratum-ai/**",
+  "apps/desktop/src/panes/assistant/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W22"
+title = "Packaging, signing, CI"
+owns = [
+  ".github/workflows/package.yml",
+  ".github/workflows/smoke.yml",
+  ".github/workflows/security.yml",
+  "xtask/src/dist.rs",
+  "xtask/src/sign.rs",
+  "xtask/src/smoke.rs",
+  "xtask/src/goldens.rs",
+  "apps/desktop/src-tauri/tauri.macos.conf.json",
+  "apps/desktop/src-tauri/tauri.windows.conf.json",
+  "apps/desktop/src-tauri/tauri.linux.conf.json",
+  "apps/desktop/src-tauri/entitlements.plist",
+  "packaging/**",
+  "scripts/dev-setup.sh",
+  "scripts/dev-setup.ps1",
+  "scripts/macos-unquarantine.sh",
+  ".github/CODEOWNERS",
+  ".github/commitlint.config.mjs",
+  ".github/cliff.toml",
+  ".github/pull_request_template.md",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W23"
+title = "Difftest harness and goldens"
+owns = [
+  "crates/stratum-difftest/**",
+  "xtask/src/difftest.rs",
+  "tests/difftest/**",
+  ".github/workflows/stata-diff.yml",
+  "scripts/run-stata.sh",
+  "scripts/capture-golden.sh",        # not in §8 — see header
+  "scripts/stata_diff.py",            # not in §8 — see header
+  "tests/golden/README.md",           # not in §8 — see header
+  "tests/golden/stata18/**",          # not in §8 — see header
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W24"
+title = "Windows and Linux platform impls"
+owns = [
+  "crates/stratum-platform-windows/**",
+  "crates/stratum-platform-linux/**",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W25"
+title = "End-to-end harness"
+owns = [
+  "crates/stratum-e2e/**",
+  "apps/desktop/src/e2e/**",
+  "apps/desktop/src-tauri/src/e2e_cmds.rs",
+  "tests/e2e/harness.rs",
+  "tests/e2e/mod.rs",
+  "tests/e2e/fixtures/**",
+  ".github/workflows/e2e.yml",
+  "xtask/src/e2e.rs",
+]
+
+# ---------------------------------------------------------------------------
+[[unit]]
+id = "W26"
+title = "stratum-workspace and the .do writers"
+owns = [
+  "crates/stratum-workspace/**",
+  "tests/e2e/scenario_d.rs",
+]
+
+# ---------------------------------------------------------------------------
+# Not in §8: the landing page (aniruthananth.github.io/stratum) and the
+# workflow that builds site/ and publishes it to the gh-pages branch. Added
+# 2026-08-23 so the page's source lives in the repo rather than only as a
+# compiled export on gh-pages.
+[[unit]]
+id = "SITE"
+title = "Landing page"
+owns = [
+  "site/**",
+  ".github/workflows/site.yml",
+]
+
+# ---------------------------------------------------------------------------
+# IMPLEMENTATION_PLAN §8.1 — directories deliberately owned by nobody.
+# `xtask ownership` skips untracked files anyway, so these entries only matter
+# for the rare case where one of these paths is force-added to the index.
+[unowned]
+paths = [
+  "target/**",
+  "**/node_modules/**",
+  ".stratum/**",
+  "**/dist/**",
+  "apps/desktop/src-tauri/gen/**",
+]

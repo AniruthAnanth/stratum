@@ -1,0 +1,62 @@
+# `taplo fmt --check` is a required PR check (08 §8.2). taplo is AUTHORITATIVE
+# over every `.toml` in the tree: `taplo fmt` is what makes the gate green, and
+# hand alignment that taplo would not produce is not preserved.
+#
+# The settings below are chosen so that the output of the tools that WRITE these
+# files — `cargo add`/`cargo new`, cargo-hakari regenerating
+# `crates/stratum-workspace-hack/Cargo.toml`, anything cargo-release rewrites —
+# round-trips without a diff. That is the property worth having: a setting that
+# disagrees with cargo turns every routine `cargo add` into a red required check,
+# which is how this gate came to be red across 34 files at once.
+
+include = ["**/*.toml"]
+exclude = [
+  "target/**",
+  "node_modules/**",
+  "apps/desktop/src-tauri/gen/**",
+  ".stratum/**",
+]
+
+[formatting]
+align_entries = false
+align_comments = true
+array_trailing_comma = true
+array_auto_expand = true
+array_auto_collapse = false
+compact_arrays = true
+# `false`, not `true`. `true` emits `{workspace = true}`; cargo itself
+# (`cargo add`, `cargo new`) and cargo-hakari both write
+# `{ workspace = true }` with the inner spaces. With `true` this gate went red
+# the first time anyone ran `cargo add` or regenerated the hack manifest —
+# exactly the round-trip the header above promises. 23 of the 24 hand-written
+# manifests in the tree already use the spaced form; only a formatter run had
+# ever produced the compact one.
+compact_inline_tables = false
+compact_entries = false
+column_width = 100
+indent_tables = false
+indent_entries = false
+indent_string = "  "
+trailing_newline = true
+# Cargo manifests are read top-to-bottom by humans; key order carries intent
+# (workspace, then package, then dependencies) and reordering destroys it.
+reorder_keys = false
+reorder_arrays = false
+allowed_blank_lines = 2
+crlf = false
+
+# The workspace root aligns the `[workspace.dependencies]` values into columns so
+# the version/feature set of every shared crate is scannable. Preserve that.
+[[rule]]
+include = ["Cargo.toml"]
+[rule.formatting]
+align_entries = true
+
+# cargo-hakari owns this file's contents; format it the way hakari emits it so
+# `cargo hakari verify` and `taplo fmt --check` cannot disagree.
+[[rule]]
+include = ["crates/stratum-workspace-hack/Cargo.toml"]
+[rule.formatting]
+align_entries = false
+align_comments = false
+array_auto_collapse = true

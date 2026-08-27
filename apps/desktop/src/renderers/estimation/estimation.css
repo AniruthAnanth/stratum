@@ -1,0 +1,77 @@
+/* Estimation — 06 §6.4.
+ *
+ * No significance stars: a bare `regress` does not print them and we are
+ * faithful. Stars exist in the comparison view (§7), where the convention is
+ * universal and the reader has asked for a comparison.
+ */
+
+.estim__strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-12);
+  min-height: var(--h-grid-row);
+  margin-bottom: var(--sp-6);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  font-variant-numeric: var(--font-numeric);
+}
+
+.estim__stat {
+  display: inline-flex;
+  gap: var(--sp-4);
+  align-items: baseline;
+}
+
+.estim__stat-label {
+  color: var(--text-meta);
+}
+
+.estim__stat-value {
+  color: var(--text-heading);
+}
+
+.estim__table {
+  width: max-content;
+}
+
+.estim__ci-head {
+  width: 90px;
+}
+
+.estim__ci {
+  padding-left: var(--sp-12);
+  vertical-align: middle;
+}
+
+/* Omitted and base levels in meta ink, exactly as Stata renders them. */
+.estim__inert {
+  color: var(--text-meta);
+  text-align: left;
+  font-family: var(--font-mono);
+}
+
+.estim__sources {
+  margin-top: var(--sp-8);
+}
+
+.estim__disclose {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--text-label);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  cursor: default;
+}
+
+.estim__disclose:hover {
+  color: var(--text-body);
+  border-bottom-color: var(--border-strong);
+}
+
+.estim__anova {
+  margin-top: var(--sp-6);
+}

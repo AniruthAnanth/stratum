@@ -1,0 +1,59 @@
+# The platform ADAPTER LAYER — traits and plain data only (08 §5.0 rule 1,
+# ARCHITECTURE §5, spec §28).
+#
+# The dependency list is the acceptance bullet: "compiles for all three targets
+# with zero OS deps (`cargo tree` assertion)". Every entry below is pure Rust
+# with no `cfg(target_os)` surface of its own, and `tests/no_os_deps.rs` proves
+# it against the resolved graph for all three release triples rather than
+# against this comment.
+#
+# NONE of these can be `{ workspace = true }`: the workspace dependency table
+# lives in the root `Cargo.toml`, which R0 assigns to W00, and `async-trait`,
+# `secrecy` and `serde`-adjacent entries for this layer are not in it. Versions
+# are therefore pinned at this use site. If the workspace table later grows
+# these rows, this file should switch to `workspace = true` in one edit.
+
+[package]
+name = "stratum-platform"
+description = "Stratum's OS adapter traits: paths, credentials, dialogs, menus, updates, shell, processes, notifications."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+default = []
+# Off by default, exactly as on stratum-proto. `stratum-desktop` turns it on so
+# `tauri-specta` can emit `CredentialBackend`, `KeymapPreset` and `PlatformId`
+# into apps/desktop/src/ipc/types.ts (CONTRACTS §11: `credentials_backend`,
+# `menu_accelerator`).
+specta = ["dep:specta"]
+
+[dependencies]
+serde = { workspace = true }
+camino = { workspace = true }
+thiserror = { workspace = true }
+# Dyn-compatibility, not ergonomics. `Platform::dialogs()` hands back
+# `&dyn FileDialogs`, and a native `async fn` in a trait returns an opaque
+# `impl Future`, which is not dyn-compatible. 08 §5.4/§5.7 spell the attribute
+# out for exactly this reason.
+async-trait = "0.1"
+# 08 §5.3: "SecretString is `secrecy::SecretString` — zeroizes on drop and has
+# no Debug impl that prints the value. Non-negotiable for API keys."
+secrecy = "0.10"
+specta = { workspace = true, optional = true, features = ["std", "camino"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints.rust]
+missing_docs = "warn"
+# The trait crate is data declarations and pure functions over environment
+# strings. Every line of unsafe in this layer belongs in an impl crate.
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

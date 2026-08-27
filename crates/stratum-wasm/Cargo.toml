@@ -1,0 +1,110 @@
+# The wasm harness (CONTRACTS.md §14, ARCHITECTURE.md §5).
+#
+# `crate-type` carries both: `cdylib` is what `wasm-pack` links for the webview,
+# `rlib` is what `crates/stratum-wasm/tests/parity.rs` (W11b) links so the SAME
+# code runs natively under `cargo test` and in node under `wasm-bindgen-test`.
+# Dropping either half deletes one side of the parity gate.
+#
+# ---------------------------------------------------------------------------
+# HAND-OFF TO W11b. This manifest is W11a's file (docs/ownership.toml), but the
+# dependencies the real segmenter needs cannot be declared before the crates
+# exist — an optional dependency on a path that is not there fails `cargo
+# metadata` for the entire workspace, not just for this crate. When W11b lands
+# it adds, and nothing else:
+#
+#   [dependencies]
+#   stratum-parse = { path = "../stratum-parse" }
+#   stratum-intel = { path = "../stratum-intel" }
+#
+# plus `mod engine;` and the two-line `Backend`/`ENGINE_LINKED` swap documented
+# at the seam in src/lib.rs.
+# ---------------------------------------------------------------------------
+
+[package]
+name = "stratum-wasm"
+description = "The wasm-bindgen surface over Stratum's segmenter (CONTRACTS §14)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Dev builds only. `xtask wasm --dev` turns it on; the release path never does,
+# because the hook costs ~10 KB of the 700 KB budget to print a stack trace no
+# user will read.
+panic-hook = ["dep:console_error_panic_hook"]
+
+[dependencies]
+stratum-proto = { path = "../stratum-proto" }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+# `set_completion_env` takes the SAME msgpack bytes the engine broadcast
+# (CONTRACTS §9/§10); decoding them here rather than re-encoding as JSON in the
+# webview is what keeps the keystroke path off the JSON parser.
+rmp-serde = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+console_error_panic_hook = { workspace = true, optional = true }
+# ---------------------------------------------------------------------------
+# W11b, exactly as the hand-off note above prescribes. `stratum-parse` is THE
+# segmentation algorithm (design 02 §5); linking it here is what makes the
+# editor gutter and the runtime the same code rather than two that agree today.
+#
+# `stratum-intel` is NOT here, and the hand-off note expected it to be. W20
+# landed `crates/stratum-intel` while W11b was running, but its `complete`
+# module is a one-line `//! placeholder` — there is no completion API in it yet
+# to call. Linking it anyway would add `stratum-effects` to this crate's
+# dependency tree, and this crate's acceptance is an assertion about exactly
+# that tree (`parity.rs::no_forbidden_crate_is_in_the_wasm_dep_tree`), so the
+# edge is added by whoever adds the first real call and re-runs that gate.
+# `complete.rs` and `regions.rs::push_narrative` mark the two delegation
+# points; W11b's return says so.
+stratum-parse = { path = "../stratum-parse" }
+# NOT in `[workspace.dependencies]` — W00's table lists wasm-bindgen,
+# serde-wasm-bindgen and console_error_panic_hook but not js-sys, and CONTRACTS
+# §14 spells the flat views as `js_sys::Int32Array` / `js_sys::BigUint64Array`.
+# Pinned to the version wasm-bindgen 0.2 resolves. See the return report: this
+# line wants to move into the workspace table.
+js-sys = "0.3"
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+# W11b's gates, split by target because `cargo test --target
+# wasm32-unknown-unknown` builds EVERY dev-dependency whatever the `cfg`s inside
+# the test files say. `criterion` wants threads and `std::time`; `proptest`
+# wants an entropy source. Neither exists in `wasm32-unknown-unknown`, so an
+# untargeted entry for either makes the wasm half of the parity gate — the half
+# that is the entire point — impossible to build.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+proptest = { workspace = true }
+criterion = { workspace = true }
+
+# The node half. `parity.rs` carries `#[test]` and `#[wasm_bindgen_test]` on the
+# same functions, so the same source is both assertions.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
+# `harness = false` is why this entry has to exist at all: criterion supplies its
+# own main, and cargo's autodiscovery would otherwise compile the bench against
+# libtest and fail on the missing `#[bench]`s.
+[[bench]]
+name = "resegment"
+harness = false
+
+[lints.rust]
+# The flat views are built with `js_sys::Int32Array::from(&[i32])`, which copies
+# rather than aliasing linear memory. `Int32Array::view` would save the memcpy
+# and cost a soundness argument about memory growth invalidating the view on
+# every `reserve` — the wrong trade for a few kilobytes of i32.
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

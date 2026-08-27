@@ -1,0 +1,17 @@
+{
+  "abi": 1,
+  "regions": [
+    {"i": 0, "span": [0, 144], "outer": [0, 145], "kind": "end_block:program", "entry": "cr", "exit": "cr", "lines": [0, 5], "flags": ["executable"], "hash": "cb616aaa714696df16d18e3b2aafb8ea", "ordinal": 0},
+    {"i": 1, "span": [145, 146], "outer": [145, 146], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [6, 6], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 0},
+    {"i": 2, "span": [146, 206], "outer": [146, 207], "kind": "end_block:mata", "entry": "cr", "exit": "cr", "lines": [7, 12], "flags": ["executable"], "hash": "7063851e841318d9a511c5422b36b0a6", "ordinal": 0},
+    {"i": 3, "span": [207, 208], "outer": [207, 208], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [13, 13], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 1},
+    {"i": 4, "span": [208, 226], "outer": [208, 227], "kind": "simple", "entry": "cr", "exit": "cr", "lines": [14, 14], "flags": ["executable"], "hash": "1812043c2e0c0afc34815cd354f3b07e", "ordinal": 0},
+    {"i": 5, "span": [227, 228], "outer": [227, 228], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [15, 15], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 2},
+    {"i": 6, "span": [228, 250], "outer": [228, 251], "kind": "end_block:input", "entry": "cr", "exit": "cr", "lines": [16, 19], "flags": ["executable"], "hash": "6e9759c2f0afbd8285ccddca3a9bb231", "ordinal": 0},
+    {"i": 7, "span": [251, 252], "outer": [251, 252], "kind": "trivia", "entry": "cr", "exit": "cr", "lines": [20, 20], "flags": [], "hash": "af1349b9f5f9a1a6a0404dea36dcc949", "ordinal": 3},
+    {"i": 8, "span": [252, 278], "outer": [252, 279], "kind": "end_block:python", "entry": "cr", "exit": "cr", "lines": [21, 23], "flags": ["executable"], "hash": "a68374b3a88a7837602edbfbd0306bf3", "ordinal": 0}
+  ],
+  "sections": [],
+  "narrative": [],
+  "diagnostics": []
+}

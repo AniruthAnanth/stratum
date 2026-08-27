@@ -1,0 +1,364 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 18.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2023 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: [redacted]
+Serial number: [redacted]
+  Licensed to: [redacted]
+               [redacted]
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do errors.do 
+
+. * Golden reference: exact error messages and return codes.
+. * `capture noisily` prints the message and lets the do-file continue.
+. set more off
+
+. set linesize 100
+
+. 
+. program define try
+  1.     di ""
+  2.     di `"----- `0'"'
+  3.     capture noisily `0'
+  4.     di "rc = " _rc
+  5. end
+
+. 
+. sysuse auto, clear
+(1978 automobile data)
+
+. 
+. try summarize nosuchvar
+
+----- summarize nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try summarize incom
+
+----- summarize incom
+variable incom not found
+rc = 111
+
+. try regress price nosuchvar
+
+----- regress price nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try gen price = 1
+
+----- gen price = 1
+variable price already defined
+rc = 110
+
+. try gen = 1
+
+----- gen = 1
+too few variables specified
+rc = 102
+
+. try replace nosuchvar = 1
+
+----- replace nosuchvar = 1
+variable nosuchvar not found
+rc = 111
+
+. try drop nosuchvar
+
+----- drop nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try rename nosuchvar other
+
+----- rename nosuchvar other
+variable nosuchvar not found
+rc = 111
+
+. try use /no/such/file.dta, clear
+
+----- use /no/such/file.dta, clear
+file /no/such/file.dta not found
+rc = 601
+
+. try list in 999
+
+----- list in 999
+observation numbers out of range
+rc = 198
+
+. try list in 0
+
+----- list in 0
+'0' invalid observation number
+rc = 198
+
+. try count if nosuchvar > 1
+
+----- count if nosuchvar > 1
+nosuchvar not found
+rc = 111
+
+. try gen x = "text" + 1
+
+----- gen x = "text" + 1
+type mismatch
+rc = 109
+
+. try gen byte b = 500
+
+----- gen byte b = 500
+rc = 0
+
+. try regress price
+
+----- regress price
+
+      Source |       SS           df       MS      Number of obs   =        74
+-------------+----------------------------------   F(0, 73)        =      0.00
+       Model |           0         0           .   Prob > F        =         .
+    Residual |   635065396        73  8699525.97   R-squared       =    0.0000
+-------------+----------------------------------   Adj R-squared   =    0.0000
+       Total |   635065396        73  8699525.97   Root MSE        =    2949.5
+
+------------------------------------------------------------------------------
+       price | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _cons |   6165.257   342.8719    17.98   0.000     5481.914      6848.6
+------------------------------------------------------------------------------
+rc = 0
+
+. try regress
+
+----- regress
+
+      Source |       SS           df       MS      Number of obs   =        74
+-------------+----------------------------------   F(0, 73)        =      0.00
+       Model |           0         0           .   Prob > F        =         .
+    Residual |   635065396        73  8699525.97   R-squared       =    0.0000
+-------------+----------------------------------   Adj R-squared   =    0.0000
+       Total |   635065396        73  8699525.97   Root MSE        =    2949.5
+
+------------------------------------------------------------------------------
+       price | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _cons |   6165.257   342.8719    17.98   0.000     5481.914      6848.6
+------------------------------------------------------------------------------
+rc = 0
+
+. try tabulate nosuchvar
+
+----- tabulate nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try summarize price, nosuchoption
+
+----- summarize price, nosuchoption
+option nosuchoption not allowed
+rc = 198
+
+. try summarize price, detial
+
+----- summarize price, detial
+option detial not allowed
+rc = 198
+
+. try foo bar baz
+
+----- foo bar baz
+command foo is unrecognized
+rc = 199
+
+. try sort nosuchvar
+
+----- sort nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try merge 1:1 nosuchvar using nofile.dta
+
+----- merge 1:1 nosuchvar using nofile.dta
+variable nosuchvar not found
+rc = 111
+
+. try predict yhat
+
+----- predict yhat
+(option xb assumed; fitted values)
+rc = 0
+
+. try replace price = 1 if nosuchvar
+
+----- replace price = 1 if nosuchvar
+nosuchvar not found
+rc = 111
+
+. try egen z = nosuchfunc(price)
+
+----- egen z = nosuchfunc(price)
+unknown egen function nosuchfunc()
+rc = 133
+
+. try summarize price in 1/999
+
+----- summarize price in 1/999
+observation numbers out of range
+rc = 198
+
+. try recode price (1=2)
+
+----- recode price (1=2)
+(0 changes made to price)
+rc = 0
+
+. try destring make, replace
+
+----- destring make, replace
+make: contains nonnumeric characters; no replace
+rc = 0
+
+. try encode price, gen(newv)
+
+----- encode price, gen(newv)
+not possible with numeric variable
+rc = 107
+
+. try label values price nosuchlabel
+
+----- label values price nosuchlabel
+rc = 0
+
+. try describe nosuchvar
+
+----- describe nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try codebook nosuchvar
+
+----- codebook nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try correlate price nosuchvar
+
+----- correlate price nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. try ttest price
+
+----- ttest price
+by() option required
+rc = 100
+
+. try tabstat nosuchvar
+
+----- tabstat nosuchvar
+variable nosuchvar not found
+rc = 111
+
+. 
+. di ""
+
+
+. di "----- capture semantics"
+----- capture semantics
+
+. capture summarize nosuchvar
+
+. di "captured rc = " _rc
+captured rc = 111
+
+. capture summarize price
+
+. di "after success rc = " _rc
+after success rc = 0
+
+. 
+. di ""
+
+
+. di "----- assert failure"
+----- assert failure
+
+. capture noisily assert price > 100000
+74 contradictions in 74 observations
+assertion is false
+
+. di "rc = " _rc
+rc = 9
+
+. 
+. di ""
+
+
+. di "----- confirm"
+----- confirm
+
+. capture noisily confirm variable price
+
+. di "rc = " _rc
+rc = 0
+
+. capture noisily confirm variable nosuchvar
+variable nosuchvar not found
+
+. di "rc = " _rc
+rc = 111
+
+. capture noisily confirm numeric variable make
+'make' found where numeric variable expected
+
+. di "rc = " _rc
+rc = 7
+
+. capture noisily confirm new variable price
+variable price already defined
+
+. di "rc = " _rc
+rc = 110
+
+. 
+. di ""
+
+
+. di "----- error inside loop propagates"
+----- error inside loop propagates
+
+. capture noisily {
+.     foreach v of varlist price nosuchvar {
+  2.         summarize `v'
+  3.     }
+variable nosuchvar not found
+r(111);
+. }
+
+. di "rc = " _rc
+rc = 111
+
+. 
+. di ""
+
+
+. di "===== END ====="
+===== END =====
+
+. 
+end of do-file

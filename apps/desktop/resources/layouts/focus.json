@@ -1,0 +1,60 @@
+{
+  "schema": 3,
+  "id": "focus",
+  "name": "Focus",
+  "_source": "docs/design/06-ui-architecture.md §8.4 — a single editor group, code column capped at 92ch with cards allowed to 120ch, top bar auto-hiding and the status bar gone. Mod+1..9 reveal a pane as a transient right overlay rather than docking it, so the dock itself stays one group.",
+  "chrome": {
+    "topBar": "auto-hide",
+    "statusBar": false
+  },
+  "defaults": {
+    "inlineResults": "always",
+    "docView": true,
+    "commandBar": "overlay",
+    "theme": "system"
+  },
+  "windows": [
+    {
+      "role": "main",
+      "label": "main",
+      "dock": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": ["editor"],
+                  "activeView": "editor",
+                  "id": "1"
+                },
+                "size": 1280
+              }
+            ],
+            "size": 740
+          },
+          "width": 1280,
+          "height": 740,
+          "orientation": "HORIZONTAL"
+        },
+        "panels": {
+          "editor": {
+            "id": "editor",
+            "contentComponent": "editor",
+            "title": "Editor"
+          }
+        },
+        "activeGroup": "1"
+      }
+    }
+  ],
+  "panes": {
+    "editor": {
+      "measure": {
+        "codeCh": 92,
+        "cardCh": 120
+      }
+    }
+  }
+}

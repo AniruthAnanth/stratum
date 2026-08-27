@@ -1,0 +1,69 @@
+/* Generic matrix results, scalars and data-change summaries — 06 §14.8. */
+
+.gtab__caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: var(--sp-4);
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.gtab [data-align="left"] {
+  text-align: left;
+}
+
+.gtab [data-align="right"],
+.gtab [data-align="decimal"] {
+  text-align: right;
+}
+
+.gtab th[scope="row"] {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-regular);
+  color: var(--text-body);
+}
+
+.scalars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-12);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-small);
+  font-variant-numeric: var(--font-numeric);
+}
+
+.scalars__pair {
+  display: inline-flex;
+  gap: var(--sp-4);
+  align-items: baseline;
+}
+
+.scalars dt {
+  color: var(--text-meta);
+}
+
+.scalars dd {
+  margin: 0;
+  color: var(--text-heading);
+}
+
+.dchg__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.dchg__shape {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  font-variant-numeric: var(--font-numeric);
+  color: var(--text-meta);
+}

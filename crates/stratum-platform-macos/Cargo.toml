@@ -1,0 +1,93 @@
+# The macOS implementation of the platform adapter layer (08 §5).
+#
+# `deny.toml` names this crate as the ONLY permitted wrapper for `objc2*`,
+# `security-framework` and (with its two siblings) `rfd`. That ban list is the
+# machine-checkable half of 08 §5.0 rule 2; this manifest is the other half.
+#
+# Every OS dependency is behind `cfg(target_os = "macos")` and every module is
+# `#[cfg(target_os = "macos")]`, so the crate resolves and builds to an empty
+# library on Windows and Linux. That keeps `cargo metadata`, `cargo deny` and a
+# workspace-wide `cargo build` green on all three targets while W24's crates do
+# not yet exist.
+
+[package]
+name = "stratum-platform-macos"
+description = "macOS implementation of the Stratum platform adapter traits."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+stratum-platform = { path = "../stratum-platform" }
+# Re-declared here rather than reached through `stratum-platform`: a crate must
+# name what it uses, and these three appear in this crate's own signatures.
+camino = { workspace = true }
+async-trait = "0.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# sysctl, setpgid, killpg, host_statistics64.
+libc = "0.2"
+# CFDictionary/CFString/CFData, for the Keychain query dictionaries we build by
+# hand: `security-framework`'s `ItemAddOptions` has no way to set
+# `kSecAttrAccessible`, which is the whole point of this unit's acceptance.
+core-foundation = "0.10"
+core-foundation-sys = "0.8"
+# `OSX_10_15` is what exposes `kSecUseDataProtectionKeychain`.
+security-framework = { version = "3", features = ["OSX_10_15"] }
+security-framework-sys = { version = "2", features = ["OSX_10_15"] }
+# UNUserNotificationCenter and NSApplication's dock tile, reached by dynamic
+# class lookup so that an unbundled build links and simply reports Unsupported.
+# `default-features = false` on all three framework crates: the defaults enable
+# every class in the framework, which for AppKit drags CloudKit, CoreData,
+# CoreImage, CoreLocation and QuartzCore into the graph for the sake of one
+# dock-tile call. We name the four classes we actually message.
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSString",
+  "NSArray",
+  "NSError",
+] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSDockTile",
+  "NSResponder",
+] }
+objc2-user-notifications = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "UNUserNotificationCenter",
+  "UNNotificationContent",
+  "UNNotificationRequest",
+  "UNNotificationSettings",
+  "UNNotificationSound",
+  "UNNotificationTrigger",
+  "UNError",
+] }
+block2 = "0.6"
+# NSOpenPanel/NSSavePanel with main-queue marshalling already done. 08 §5.4
+# prescribes `objc2-app-kit` directly; `rfd` IS that, plus the dispatch and the
+# lifetime handling, and it is sanctioned by the workspace table and deny.toml.
+rfd = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+# The second W10 acceptance bullet: "`Unsupported` and `Cancelled` are
+# first-class returns everywhere; a test proves no impl `unwrap`s them." This is
+# the compiler half of that proof and `tests/no_unwrap.rs` is the textual half —
+# together they cover both the `Result<_, PlatformError>` this crate produces and
+# the ones it consumes.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

@@ -1,0 +1,56 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Tauri
+/apps/desktop/src-tauri/target/
+/apps/desktop/src-tauri/gen/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Project runtime state
+.stratum/cache/
+.stratum/logs/
+
+# Sidecar workspace files are per-user UI state, not source.
+# See DECISIONS.md (ADR: sidecar metadata) for the rationale.
+*.workspace
+!docs/**/*.workspace
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.p12
+*.mobileprovision
+
+# Local editor/agent launch config, not part of the project.
+.claude/
+
+# Tauri sidecar staging: the engine binary is copied here at build time by
+# W22's pipeline (cargo build -p stratum-cli && cp). A compiled binary in git
+# history is dead weight that can never be reviewed; CI rebuilds it from source.
+apps/desktop/src-tauri/binaries/
+
+# Staged at build time by `cargo xtask dist stage` from
+# packaging/macos/Info.additions.plist (the tracked source of truth). The
+# file's own header says: untracked, generated.
+apps/desktop/src-tauri/Info.plist
+
+# vitest coverage output (CI artifact, never tracked)
+apps/desktop/coverage/

@@ -1,0 +1,187 @@
+/* Graph Deck — 06 §6.7, §14.4.
+ *
+ * A filmstrip, not a gallery of cards: hairline rules between rows, no radius,
+ * no shadow, no hover lift. §39 rules out "an Electron admin dashboard", and a
+ * grid of floating tiles with drop shadows is exactly that. The figure is the
+ * only thing on the row with ink in it; everything else is a rule or meta text.
+ *
+ * Every colour and every length is a token. `stratum-graph` compiles the same
+ * palette into the SVG (A14), so the figure and its frame come from one file.
+ */
+
+.deck {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.deck__count {
+  color: var(--text-meta);
+  margin-right: var(--sp-8);
+  white-space: nowrap;
+}
+
+.deck__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.deck__empty {
+  margin: 0;
+  padding: var(--sp-24) var(--sp-12);
+  color: var(--text-meta);
+  max-width: 46ch;
+}
+
+/* ------------------------------------------------------------------ a row */
+
+.deck__item {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12) var(--sp-12);
+  border-bottom: var(--hairline) solid var(--border);
+  /* The state rail, so a pinned or selected row is legible in a screenshot and
+     not only under a pointer. Colour is never the only channel (06 §17): the
+     Pin button also reads "Pinned". */
+  border-left: var(--w-state-rail) solid transparent;
+}
+
+.deck__item[data-pinned] {
+  border-left-color: var(--accent);
+}
+
+.deck__item[data-selected] {
+  background: var(--input);
+  border-left-color: var(--text-body);
+}
+
+.deck__caption {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-6);
+}
+
+/* The whole caption is the compare picker: 06 §6.7's "select 2-4". A separate
+   checkbox column would be a second target for the same intent. */
+.deck__pick {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.deck__pick:focus-visible {
+  outline: var(--hairline) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck__name {
+  font-size: var(--fs-small);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+
+.deck__cmd {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck__time {
+  color: var(--text-meta);
+  font-variant-numeric: var(--font-numeric);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- the figure */
+
+/* `contain: strict` so a graph's own layout can never reach the row, and the
+   box is sized from `intrinsic_pt` before the bytes arrive — the same rule the
+   inline card follows, for the same reason (no `overflow-anchor` in WebKit). */
+.deck__frame {
+  width: 100%;
+  max-width: 640px;
+  contain: strict;
+  background: var(--canvas);
+  border: var(--hairline) solid var(--border);
+}
+
+.deck__canvas,
+.deck__canvas > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.deck__placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+/* ------------------------------------------------------------- the actions */
+
+.deck__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
+
+/* ---------------------------------------------------------- the comparison */
+
+.deck__compare {
+  display: flex;
+  gap: var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-bottom: var(--hairline) solid var(--border-strong);
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.deck__compare-item {
+  margin: 0;
+  flex: 1 1 0;
+  min-width: 160px;
+}
+
+.deck__compare-caption {
+  display: block;
+  margin-top: var(--sp-4);
+  font-family: var(--font-mono);
+  color: var(--text-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A printed deck is a contact sheet: no chrome, no buttons, one figure per row
+   with its command underneath. `print.css` sets the page; this sets the pane. */
+@media print {
+  .deck__actions,
+  .deck__count {
+    display: none;
+  }
+
+  .deck__item {
+    break-inside: avoid;
+  }
+}

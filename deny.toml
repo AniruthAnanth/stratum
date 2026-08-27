@@ -1,0 +1,182 @@
+# cargo-deny: licenses, bans, advisories, sources (08 §1).
+#
+# The `[bans].deny` list is not hygiene — it is ARCHITECTURE §8's layering
+# invariants expressed where they are checked cheaply. `wrappers` names the ONLY
+# crates permitted to depend on each entry; everything else in the graph fails.
+
+[graph]
+# The release matrix (08 §6.2). Checking every target keeps a cfg-gated
+# dependency from slipping past on the host that does not build it.
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+  "aarch64-pc-windows-msvc",
+  "wasm32-unknown-unknown",
+]
+all-features = false
+no-default-features = false
+# Dev-dependencies ship in nothing. `statrs` (a reference oracle for
+# stratum-core's distribution tests) pulls `nalgebra`, which the bans below
+# forbid in the binary — correctly — and would otherwise fail on a test-only
+# edge. `cargo xtask layering` makes the same distinction.
+exclude-dev = true
+
+[output]
+feature-depth = 1
+
+# ---------------------------------------------------------------------------
+[advisories]
+version = 2
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+# Every entry below is an "unmaintained" notice, not a vulnerability, and every
+# one arrives through the Tauri 2 / wry stack we do not control. Listed by id
+# so a NEW advisory against any of these crates still fails the check.
+ignore = [
+  # gtk-rs GTK3 bindings (gtk, gdk, gdkx11, gdkwayland, atk, their -sys crates,
+  # gtk3-macros): wry renders through WebKitGTK on Linux and Tauri 2 is GTK3.
+  { id = "RUSTSEC-2024-0411", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0412", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0413", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0414", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0415", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0416", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0417", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0418", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0419", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  { id = "RUSTSEC-2024-0420", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
+  # proc-macro-error: pulled by gtk3-macros/glib-macros in the same stack.
+  { id = "RUSTSEC-2024-0370", reason = "transitive via the GTK3 macro crates" },
+  # unic-* (char-range, char-property, common, ucd-ident, ucd-version): the
+  # tauri build/codegen tooling's template engine.
+  { id = "RUSTSEC-2025-0075", reason = "transitive via tauri codegen tooling" },
+  { id = "RUSTSEC-2025-0080", reason = "transitive via tauri codegen tooling" },
+  { id = "RUSTSEC-2025-0081", reason = "transitive via tauri codegen tooling" },
+  { id = "RUSTSEC-2025-0098", reason = "transitive via tauri codegen tooling" },
+  { id = "RUSTSEC-2025-0100", reason = "transitive via tauri codegen tooling" },
+]
+
+# ---------------------------------------------------------------------------
+[licenses]
+version = 2
+# Stratum itself is AGPL-3.0-or-later OR a commercial licence; a copyleft
+# DEPENDENCY is still a distribution problem for the commercial half, so GPL and
+# AGPL are absent from this list on purpose.
+allow = [
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "MIT",
+  "MIT-0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "CC0-1.0",
+  "BSL-1.0",
+  # Our own crates. The workspace declares AGPL-3.0-or-later with a commercial
+  # alternative; cargo-deny must accept the licence we ship under or it rejects
+  # every first-party crate (the first real CI run did exactly that).
+  "AGPL-3.0-or-later",
+  "LicenseRef-Stratum-Commercial",
+  # webpki-root-certs: Mozilla's root store redistributed under CDLA-Permissive,
+  # pulled in by reqwest's rustls path in stratum-ai.
+  "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.93
+unused-allowed-license = "allow"
+
+[licenses.private]
+# Workspace members are not published; do not license-check them.
+ignore = true
+registries = []
+
+# ---------------------------------------------------------------------------
+[bans]
+# Visible, not fatal: a duplicate tree is a build-time cost, and forcing it to
+# zero on a workspace this size means pinning transitive deps we do not own
+# (08 §10.5).
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+
+# Absent from this list on purpose: `objc2*`, `security-framework`, `windows`,
+# `windows-sys`, `zbus` and `time`. They were here as `wrappers = [platform
+# crate]` entries, and cargo-deny's `wrappers` means "the only crates in the
+# WHOLE graph that may depend on X" — which tokio, tempfile, wry, tao, muda,
+# rfd and some forty other third-party crates violate by existing. The rule
+# those entries were reaching for is about first-party DIRECT edges, and it
+# now lives in `cargo xtask layering` (`DIRECT_ONLY_FROM`), which can state it.
+deny = [
+  # --- ADR-004 / ADR-013: no linear-algebra backend, ever. A BLAS decides its
+  #     own reduction order, and determinism is a release gate.
+  { name = "blas" },
+  { name = "blas-src" },
+  { name = "cblas" },
+  { name = "cblas-sys" },
+  { name = "lapack" },
+  { name = "lapack-src" },
+  { name = "lapacke" },
+  { name = "openblas-src" },
+  { name = "intel-mkl-src" },
+  { name = "ndarray-linalg" },
+  { name = "faer" },
+  { name = "faer-core" },
+  { name = "nalgebra" },
+
+  { name = "chrono" },
+  { name = "chrono-tz" },
+  { name = "icu_locid" },
+
+  { name = "secret-service", wrappers = [
+    "stratum-platform-linux",
+  ] },
+  { name = "rfd", wrappers = [
+    "stratum-platform-macos",
+    "stratum-platform-windows",
+    "stratum-platform-linux",
+  ] },
+
+  # --- ARCHITECTURE C17 / 08 §5.3. We hand-roll CredentialStore per OS so the
+  #     UI can tell the user WHICH backend holds their key; `keyring` hides it.
+  { name = "keyring" },
+
+  # --- ARCHITECTURE §8.1 and §8.5. Network below the two binaries is a bug, and
+  #     stratum-intel must reach no network crate at all.
+  { name = "reqwest", wrappers = [
+    "stratum-ai",
+    "stratum-cli",
+    "stratum-desktop",
+  ] },
+
+  # --- ADR-007. Arrow was evaluated and rejected in favour of SDP1.
+  { name = "arrow" },
+  { name = "arrow2" },
+  { name = "parquet" },
+
+  # --- 08 §10.2. mimalloc on all three platforms or none; jemalloc has no MSVC
+  #     support, and a per-platform allocator means per-platform performance.
+  { name = "tikv-jemallocator" },
+  { name = "jemallocator" },
+
+  # --- 08 §10.5. `openssl-sys` means a C toolchain on the Windows build path.
+  { name = "openssl-sys" },
+  { name = "openssl" },
+]
+
+skip = []
+skip-tree = []
+
+# ---------------------------------------------------------------------------
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

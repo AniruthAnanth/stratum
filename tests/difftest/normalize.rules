@@ -1,0 +1,30 @@
+# Volatile log content that must never count as a difference (plan W23).
+#
+# Applied line-by-line by `stratum-difftest`'s normalizer (src/norm.rs) when
+# whole live logs are compared. The BYTE-EXACT corpus channel never uses this
+# file: those blocks contain nothing volatile, and normalizing them would
+# hide layout bugs.
+#
+# Grammar, one rule per line:
+#   drop /REGEX/               delete every line matching REGEX
+#   sub  /REGEX/ REPLACEMENT   replace every match with REPLACEMENT
+#
+# The committed corpus's banner has its licence lines REDACTED — the goldens
+# are public, the licence is not — so the drop rules below must swallow both
+# the live shapes and the literal `[redacted]` placeholders. That is tested
+# in norm.rs: a redacted banner and a live banner normalize identically.
+
+# --- the banner's licence block, live or redacted --------------------------
+drop /^\s*Stata license:/
+drop /^\s*Serial number:/
+drop /^\s*Licensed to:/
+drop /^\s*\[redacted\]\s*$/
+
+# --- timestamps ------------------------------------------------------------
+sub /\d{1,2} [A-Z][a-z]{2} \d{4}[, ]+\d{1,2}:\d{2}(:\d{2})?/ <TIMESTAMP>
+
+# --- absolute paths (macOS, Linux, temp dirs) ------------------------------
+sub /(\/(Applications|Users|private|tmp|home|var|opt)\/)\S+/ <PATH>
+
+# --- log open\/close trailer lines Stata writes with name and date ---------
+drop /^\s*(name|log|opened on|closed on):\s/

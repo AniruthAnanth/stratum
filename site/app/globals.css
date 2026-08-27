@@ -1,0 +1,490 @@
+/* Stratum landing page — one statement, four chips, one docked CTA.
+ *
+ * Palette: ground #fbfbf9, ink #232323, unread ink at 40%, teal accent.
+ * Type: Bricolage Grotesque (next/font, self-hosted) at 600 / -0.02em.
+ *
+ * Motion grammar (see components/Statement.tsx for the JS half):
+ *   - words ink in with scroll (color only — no layout per frame);
+ *   - round chips POP with the one overshoot curve (JS constant, canonical);
+ *   - rectangle chips UNFURL from width 0 on the expo-out curve, then play
+ *     their contents (terminal typing below is CSS steps(); card rows in JS);
+ *   - everything under `.js` + `prefers-reduced-motion: no-preference` is
+ *     the pre-paint dim state, so the first frame with JS is already the
+ *     unrevealed state (no ink -> dim snap after hydration). No-JS and
+ *     reduced-motion never get `.js`: full ink, full chips, fully readable.
+ */
+
+:root {
+  --ground: #fbfbf9;
+  --ink: #232323;
+  --ink-40: rgba(35, 35, 35, 0.4);
+  --teal: #116a6a;
+  --teal-bright: #3fa99f;
+  --ease-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-grotesk), "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(17, 106, 106, 0.18);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- the statement ----------------------------------------------------- */
+
+/* 26vh / 38vh asymmetric: the bottom padding is the reveal's runway, and the
+ * CTA dock sits in it, so it never covers copy (safe-area aware). */
+.flow {
+  padding: 26vh 6vw calc(38vh + env(safe-area-inset-bottom, 0px));
+}
+
+/* 7vw rather than the brief's 6vw: at 6vw the document was too short to give
+ * the scroll-linked reveal any runway (disclosed deviation, kept on purpose). */
+.statement {
+  margin: 0;
+  max-width: 1250px;
+  font-size: clamp(2.3rem, 7vw, 5.2rem);
+  font-weight: 600;
+  line-height: 1.34;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.word {
+  color: var(--ink);
+}
+
+/* Pre-paint state when JS is on and motion is allowed (html.js is set by the
+ * inline script in app/layout.tsx before first paint). framer's `initial`
+ * values match these exactly, so there is no flash in either direction. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .word {
+    color: var(--ink-40);
+  }
+  .js .chip-pop {
+    opacity: 0;
+    transform: scale(0.5) translateY(6px);
+  }
+  .js .chip-unfurl {
+    width: 0;
+    overflow: hidden;
+  }
+  .js .chip-unfurl .r-head,
+  .js .chip-unfurl .r-row,
+  .js .chip-unfurl .r-foot {
+    opacity: 0;
+  }
+}
+
+/* "2005." — the page's single overshoot lands here, with the teal underline. */
+.pop {
+  text-decoration-line: underline;
+  text-decoration-color: var(--teal);
+  text-decoration-thickness: 0.085em;
+  text-underline-offset: 0.13em;
+  transform-origin: 50% 85%;
+  display: inline-block;
+}
+
+.platforms {
+  margin: 12vh 0 0;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  color: rgba(35, 35, 35, 0.66); /* >= 4.5:1 on the ground (WCAG AA) */
+}
+
+/* ---- chips ------------------------------------------------------------- */
+
+.chipwrap {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Unfurl wrappers keep a fixed-width child, so content never squishes or
+ * rewraps mid-expansion; `settled` restores overflow (tooltip pills) and lets
+ * the width follow the viewport again. */
+.chip-unfurl {
+  white-space: nowrap;
+  border-radius: 16px;
+}
+.js .chip-unfurl.settled {
+  overflow: visible;
+  width: auto !important;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin: 0 0.1em;
+}
+
+/* Tooltip pill: black rounded-full, 300ms expo-out, translateY(10px) -> 0. */
+.pill {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translate(-50%, 10px);
+  opacity: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-grotesk), "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+  transition:
+    opacity 0.3s var(--ease-expo),
+    transform 0.3s var(--ease-expo);
+  pointer-events: none;
+  z-index: 6;
+}
+/* Hover pills only where hover exists — touch gets no dead half-interaction. */
+@media (hover: hover) {
+  .chip:hover .pill {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.chip:focus-visible .pill {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.chip:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 4px;
+}
+
+/* Terminal chip: fixed box (zero CLS), typing via CSS steps(), caret dies
+ * when the line is done, two output lines fade up on the expo curve. */
+.term {
+  width: min(272px, 78vw);
+  height: 72px;
+  padding: 0 16px;
+  border-radius: 16px;
+  background: #0d1a19;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+  overflow: hidden;
+}
+.t-line {
+  display: block;
+  white-space: pre;
+  color: #8fafaa;
+}
+.t-cmd {
+  color: #ecf4f2;
+}
+.t-prompt {
+  color: var(--teal-bright);
+}
+.t-typed {
+  display: inline-block;
+  width: 15ch;
+  overflow: hidden;
+  white-space: pre;
+  vertical-align: bottom;
+}
+.t-caret {
+  display: inline-block;
+  width: 7px;
+  height: 11px;
+  margin-left: 2px;
+  background: var(--teal-bright);
+  opacity: 0;
+  transform: translateY(1px);
+}
+/* armed = frame is open but playback has not started; play = go. */
+.term.armed .t-typed {
+  width: 0;
+}
+.term.armed .t-caret {
+  opacity: 1;
+}
+.term.armed .t-out {
+  opacity: 0;
+}
+.term.play .t-typed {
+  width: 0;
+  animation: t-type 0.9s steps(15, end) 0.15s forwards;
+}
+.term.play .t-caret {
+  opacity: 1;
+  animation:
+    t-blink 0.9s step-end infinite,
+    t-off 10ms linear 1.1s forwards;
+}
+.term.play .t-out {
+  opacity: 0;
+  animation: t-in 0.45s var(--ease-expo) 1.12s forwards;
+}
+.term.play .t-out2 {
+  animation-delay: 1.27s;
+}
+@keyframes t-type {
+  to {
+    width: 15ch;
+  }
+}
+@keyframes t-blink {
+  0%,
+  54% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes t-off {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes t-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Regression card: real auto.dta numbers (regress price mpg weight). */
+.reg {
+  width: 216px;
+  height: 92px;
+  padding: 0 16px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(35, 35, 35, 0.13);
+  box-shadow: 0 2px 10px rgba(35, 35, 35, 0.05);
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+.r-head {
+  font-size: 10px;
+  color: rgba(35, 35, 35, 0.55);
+  white-space: nowrap;
+}
+.r-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink);
+}
+.r-num {
+  color: var(--teal);
+}
+.r-foot {
+  font-size: 10px;
+  color: rgba(35, 35, 35, 0.55);
+}
+
+/* Do-file chip: "auto.do" with a blinking teal caret. */
+.dofile {
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 14px;
+  background: rgba(35, 35, 35, 0.043);
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.d-caret {
+  display: inline-block;
+  width: 8px;
+  height: 19px;
+  margin-left: 5px;
+  border-radius: 1.5px;
+  background: var(--teal);
+  animation: d-blink 1.1s step-end infinite;
+}
+@keyframes d-blink {
+  0%,
+  54% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The Stratum mark: three teal strata, sized to the type. */
+.mark {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.06em;
+  vertical-align: -0.05em;
+}
+
+/* Phone: chips scale down so every capsule fits inside the column. */
+@media (max-width: 560px) {
+  .dofile {
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+  .d-caret {
+    width: 6px;
+    height: 15px;
+    margin-left: 4px;
+  }
+  .term {
+    width: min(230px, 82vw);
+    height: 56px;
+    padding: 0 13px;
+    border-radius: 13px;
+    gap: 1px;
+    font-size: 10px;
+  }
+  .t-caret {
+    height: 10px;
+  }
+  .reg {
+    width: 190px;
+    height: 72px;
+    padding: 0 13px;
+    border-radius: 13px;
+    gap: 2px;
+    font-size: 10px;
+  }
+  .r-head,
+  .r-foot {
+    font-size: 9px;
+  }
+  .chip-unfurl {
+    border-radius: 13px;
+  }
+}
+
+/* ---- docked CTA -------------------------------------------------------- */
+
+.cta-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.cta-slide {
+  display: inline-block;
+  pointer-events: auto;
+}
+/* Docked 46px half-off the bottom in CSS so the first JS frame and framer's
+ * `y` start from the same place (no jump). The <noscript> style in
+ * app/layout.tsx restores it for no-JS. */
+@media (prefers-reduced-motion: no-preference) {
+  .cta-slide {
+    transform: translateY(46px);
+  }
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 17px 28px;
+  border-radius: 999px;
+  background: #000;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  text-decoration: none;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  transition:
+    transform 0.15s var(--ease-expo),
+    background 0.15s var(--ease-expo);
+}
+.cta:hover {
+  background: #181818;
+  transform: translateY(-2px);
+}
+.cta:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+.cta svg {
+  display: block;
+}
+
+/* ---- reduced motion: everything printed, nothing moves ----------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .d-caret,
+  .t-caret {
+    animation: none !important;
+  }
+  .t-caret {
+    opacity: 0 !important;
+  }
+  .term .t-typed {
+    width: 15ch !important;
+    animation: none !important;
+  }
+  .term .t-out {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+  .chipwrap {
+    opacity: 1 !important;
+    width: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+  .pill,
+  .cta {
+    transition: none;
+  }
+}
