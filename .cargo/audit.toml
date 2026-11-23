@@ -5,17 +5,6 @@
 # crates still fails the job.
 [advisories]
 ignore = [
-  # gtk-rs GTK3 bindings: wry renders through WebKitGTK on Linux; Tauri 2 is GTK3.
-  "RUSTSEC-2024-0411",
-  "RUSTSEC-2024-0412",
-  "RUSTSEC-2024-0413",
-  "RUSTSEC-2024-0414",
-  "RUSTSEC-2024-0415",
-  "RUSTSEC-2024-0416",
-  "RUSTSEC-2024-0417",
-  "RUSTSEC-2024-0418",
-  "RUSTSEC-2024-0419",
-  "RUSTSEC-2024-0420",
   # glib VariantStrIter unsoundness, fixed in glib 0.20; the GTK3 line pins 0.18.
   "RUSTSEC-2024-0429",
   # proc-macro-error via the GTK3 macro crates.
