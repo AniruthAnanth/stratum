@@ -36,18 +36,6 @@ yanked = "deny"
 # one arrives through the Tauri 2 / wry stack we do not control. Listed by id
 # so a NEW advisory against any of these crates still fails the check.
 ignore = [
-  # gtk-rs GTK3 bindings (gtk, gdk, gdkx11, gdkwayland, atk, their -sys crates,
-  # gtk3-macros): wry renders through WebKitGTK on Linux and Tauri 2 is GTK3.
-  { id = "RUSTSEC-2024-0411", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0412", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0413", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0414", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0415", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0416", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0417", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0418", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0419", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
-  { id = "RUSTSEC-2024-0420", reason = "GTK3 via wry/tao on Linux; no GTK4 Tauri yet" },
   # proc-macro-error: pulled by gtk3-macros/glib-macros in the same stack.
   { id = "RUSTSEC-2024-0370", reason = "transitive via the GTK3 macro crates" },
   # unic-* (char-range, char-property, common, ucd-ident, ucd-version): the
